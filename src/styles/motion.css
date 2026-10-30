@@ -62,10 +62,11 @@ html[data-vt='np-close']::view-transition-new(np-panel) {
   animation: none;
   opacity: 0;
 }
+/* 小唱片是播放台上的独立一层，要压在播放台之上，否则过渡时会被盖住 */
 ::view-transition-group(np-disc) {
   animation-duration: 0.7s;
   animation-timing-function: cubic-bezier(0.3, 1.05, 0.3, 1);
-  z-index: 20;
+  z-index: 40;
 }
 ::view-transition-group(deck),
 ::view-transition-group(side) {
@@ -75,6 +76,14 @@ html[data-vt='np-close']::view-transition-new(np-panel) {
 /* 过渡进行中关掉面板自己的 CSS 过渡，避免两套动画打架 */
 html[data-vt] .nowplaying {
   transition: none !important;
+}
+
+/* Chrome 给带 backdrop-filter 的元素拍过渡快照时不按圆角裁剪，播放台四角会露出方形底。
+   快照本来也拍不到背后的内容（模糊无从谈起），所以过渡这零点几秒换成颜色相近的实色底。 */
+html[data-vt] .player {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--glass-solid);
 }
 
 @keyframes vt-page-out {
