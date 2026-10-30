@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sized } from '../components/Cover';
+import { knownTint } from './covers';
 
 /** 封面主色，用色相 + 饱和度表示；明度交给 CSS 按主题决定，保证文字对比度 */
 export interface Tint {
@@ -70,6 +71,9 @@ function extract(url: string): Promise<Tint> {
 
 export function tintOf(url?: string): Promise<Tint> {
   if (!url) return Promise.resolve(DEFAULT_TINT);
+  // 生成的榜单封面主色已知，不用读像素
+  const known = knownTint(url);
+  if (known) return Promise.resolve(known);
   const key = sized(url, 64)!;
   let p = cache.get(key);
   if (!p) {

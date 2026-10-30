@@ -26,7 +26,8 @@ npm run build                # 产物在 dist/，纯静态文件
 
 | 想改什么 | 改哪里 |
 | --- | --- |
-| 站名、刊号、导航、首页区块用什么版式、音质选项、接口路径 | [src/config/site.ts](src/config/site.ts) |
+| 站名、刊号、导航、首页区块用什么版式、音质选项、接口路径、榜单封面配色 | [src/config/site.ts](src/config/site.ts) |
+| 榜单封面的图案和排版规则 | [src/lib/covers.ts](src/lib/covers.ts) |
 | 构建时注入的地址、站名、默认音质 | `.env.local`（参考 [.env.example](.env.example)） |
 | 颜色、字体、圆角、阴影 | [src/styles/tokens.css](src/styles/tokens.css) |
 | 动效（页面过渡、入场、浮层进出） | [src/styles/motion.css](src/styles/motion.css) |
@@ -42,6 +43,7 @@ npm run build                # 产物在 dist/，纯静态文件
 - 播放地址短时效：暂停过久或播放出错时自动续签，并从原位置继续
 - 唱片架：收藏、最近播放。未登录存在本机；登录后与账户服务同步，本机独有的收藏会补传
 - 登录 / 注册（邮箱 + 密码），access token 只在内存，刷新靠 BFF 下发的 cookie；BFF 没开账户服务时自动隐藏登录入口
+- 榜单封面：上游那套统一模板图会被替换成生成的封面（按名字选图案、按 id 固定配色），首页、榜单页、榜单详情、搜索结果都生效；`VITE_REPLACE_TOPLIST_COVERS=off` 可关掉
 - 日间 / 夜间 / 跟随系统；动画可在设置里精简，也遵循系统「减少动态效果」
 
 ## 动效怎么做的

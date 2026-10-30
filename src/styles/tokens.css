@@ -64,6 +64,14 @@
   transition: --accent-h 1.2s var(--ease-soft), --accent-s 1.2s var(--ease-soft);
 }
 
+/* 含 var() 的自定义属性在声明处就算好了值，子元素改 --tint-h 不会影响继承下来的 --tint，
+   所以凡是局部设置封面色相的容器，都要在自己身上重新声明一次 */
+.detail-head,
+.feature,
+.nowplaying {
+  --tint: hsl(var(--tint-h) var(--tint-s) var(--tint-l) / var(--tint-a));
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='paper']) {
     --bg: #0d0d0e;

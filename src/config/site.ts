@@ -126,6 +126,28 @@ export const searchTabs = [
   { key: 'playlist', label: '歌单' },
 ] as const;
 
+/**
+ * 榜单封面替换：上游的榜单封面是统一模板图，这里换成唱片行风格的生成封面。
+ * palette 是 [底色, 强调色]，按榜单 id 固定选一组。
+ */
+export const covers = {
+  replaceToplist: (env.VITE_REPLACE_TOPLIST_COVERS as string) !== 'off',
+  palette: [
+    ['#E8432E', '#FFD25A'],
+    ['#1F5FD6', '#9BE3FF'],
+    ['#0E8F63', '#D4F7A1'],
+    ['#6D3FE0', '#F5B3FF'],
+    ['#141414', '#FF5A1F'],
+    ['#F2A516', '#141414'],
+    ['#D0266F', '#FFE08A'],
+    ['#0F6B66', '#FFB4A2'],
+    ['#2E3A4F', '#FFB86B'],
+    ['#E9E4D8', '#E8432E'],
+    ['#9B1D20', '#F7C8B8'],
+    ['#00A3C4', '#141414'],
+  ] as [string, string][],
+};
+
 /** 图片缩略：网易云图片支持 ?param=WxH，后端换了图床可关掉 */
 export const image = {
   resizeParam: (env.VITE_IMAGE_RESIZE as string) !== 'off',

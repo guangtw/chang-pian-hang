@@ -28,6 +28,12 @@ BFF 改了路由只需改那里。
 播放地址里的 `expiresAt` / `ttlSeconds` 用来判断过期：恢复播放前若快过期（提前 `api.playUrlRenewLeadSeconds` 秒）就重新取，
 `<audio>` 报错时也会续签一次再从原位置继续。`preview: true` 时会提示只有试听片段。
 
+## 榜单封面替换
+
+前端在拿到数据后，把榜单类条目的 `coverUrl` 换成本地生成的 SVG（[src/lib/covers.ts](../src/lib/covers.ts)）：
+`discover/home` 里 `type: 'toplist'` 的条目、`toplist`、`toplist/:id`，以及 id 属于官方榜单的 `playlist/:id` 和歌单搜索结果
+（第一次需要时会拉一次 `toplist` 记下榜单 id）。后端不需要做任何改动。
+
 ## 首页区块怎么排
 
 `discover/home` 返回的每个区块按 `homeLayout` 规则选版式：先看区块 id 有没有在 `byBlockId` 里指定，
