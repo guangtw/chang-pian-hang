@@ -1,0 +1,72 @@
+/* 唱片行 · 设计变量
+   纸（paper）是默认主题，夜读（night）是深色主题。
+   主题由 <html data-theme> 控制；未指定时跟随系统。 */
+
+:root {
+  --paper: #f3eee4;
+  --paper-sunk: #ebe4d6;
+  --paper-raised: #faf7f1;
+  --ink: #1f1c18;
+  --ink-2: #5e574d;
+  --ink-3: #8f877a;
+  --rule: #1f1c18;
+  --hair: rgba(31, 28, 24, 0.16);
+  --wash: rgba(31, 28, 24, 0.05);
+  --accent: #b4381e;
+  --accent-wash: rgba(180, 56, 30, 0.08);
+  --on-ink: #f3eee4;
+  --scrim: rgba(31, 28, 24, 0.42);
+
+  --serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'Source Han Serif SC', serif;
+  --sans: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --gutter: 40px;
+  --sidebar: 232px;
+  --player: 84px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='paper']) {
+    --paper: #16140f;
+    --paper-sunk: #100e0b;
+    --paper-raised: #1f1c17;
+    --ink: #ece4d4;
+    --ink-2: #b3a994;
+    --ink-3: #7d7465;
+    --rule: #ece4d4;
+    --hair: rgba(236, 228, 212, 0.16);
+    --wash: rgba(236, 228, 212, 0.06);
+    --accent: #e0673f;
+    --accent-wash: rgba(224, 103, 63, 0.12);
+    --on-ink: #16140f;
+    --scrim: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='night'] {
+  --paper: #16140f;
+  --paper-sunk: #100e0b;
+  --paper-raised: #1f1c17;
+  --ink: #ece4d4;
+  --ink-2: #b3a994;
+  --ink-3: #7d7465;
+  --rule: #ece4d4;
+  --hair: rgba(236, 228, 212, 0.16);
+  --wash: rgba(236, 228, 212, 0.06);
+  --accent: #e0673f;
+  --accent-wash: rgba(224, 103, 63, 0.12);
+  --on-ink: #16140f;
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+@media (max-width: 860px) {
+  :root {
+    --gutter: 16px;
+    --player: 64px;
+  }
+}
