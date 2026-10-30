@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { music, type Track } from '../api';
+import { hasId, music, type Track } from '../api';
 import { DetailHeader } from '../components/DetailHeader';
 import { Icon } from '../components/Icon';
 import { ErrorState, Loading } from '../components/States';
@@ -78,7 +78,7 @@ export function AlbumView({ id }: { id: string }) {
             byline={a.artists.map((r, i) => (
               <Fragment key={`${r.id}-${i}`}>
                 {i > 0 && ' / '}
-                {r.id ? <a href={href.artist(r.id)}>{r.name}</a> : r.name}
+                {hasId(r.id) ? <a href={href.artist(r.id)}>{r.name}</a> : r.name}
               </Fragment>
             ))}
             description={a.description}

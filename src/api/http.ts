@@ -28,6 +28,13 @@ export interface RequestInitEx {
   signal?: AbortSignal;
 }
 
+const hasCjk = (s: string) => /[一-鿿]/.test(s);
+
+/** 优先用配置里的中文说明；后端本来就是中文的照原样显示 */
+function friendlyMessage(code: number, message?: string): string {
+  return api.errorText[code] ?? (message && hasCjk(message) ? message : api.errorFallback);
+}
+
 function isFailure(p: unknown): p is ApiFailure {
   return !!p && typeof p === 'object' && 'code' in p && 'message' in p;
 }
@@ -68,7 +75,7 @@ export async function request<T>(urlPath: string, init: RequestInitEx = {}): Pro
     return (payload as ApiSuccess<T>).data;
   }
   if (isFailure(payload)) {
-    throw new ApiError(payload.message || `请求失败（HTTP ${res.status}）`, payload.code, res.status, payload.traceId, payload.retryable);
+    throw new ApiError(friendlyMessage(payload.code, payload.message), payload.code, res.status, payload.traceId, payload.retryable);
   }
   throw new ApiError(`请求失败（HTTP ${res.status}）`, 5000, res.status);
 }

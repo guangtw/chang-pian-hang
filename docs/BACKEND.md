@@ -8,7 +8,8 @@ BFF 改了路由只需改那里。
 与 BFF 的 `src/lib/api-response.ts` 一致：
 
 - 成功：`{ code: 0, data, message, traceId }` → 前端取 `data`
-- 失败：`{ code, message, traceId, retryable }` → 抛 `ApiError`，界面显示 `message`
+- 失败：`{ code, message, traceId, retryable }` → 抛 `ApiError`。界面优先显示 `api.errorText` 里该 code 的中文说明；
+  没配的 code，后端给中文就原样显示，否则显示 `api.errorFallback`
 
 ## 用到的音乐接口
 
@@ -32,7 +33,8 @@ BFF 改了路由只需改那里。
 `discover/home` 返回的每个区块按 `homeLayout` 规则选版式：先看区块 id 有没有在 `byBlockId` 里指定，
 没有就看区块里多数条目的 `type`（`byItemType`）。后端新增区块不需要改前端，会自动套用对应版式。
 条目点开后的去向与 BFF 的 `discover-action.ts` 语义一致：歌单 / 榜单 / 专辑 / 艺人进详情页，
-单曲直接播放，带 `linkUrl` 的横幅新窗口打开。
+单曲直接播放，带网页链接（http/https）的横幅新窗口打开；`orpheus://` 这类 App 内链接不可点。
+上游给不出真实 id 时会填 `"0"`，这类艺人 / 专辑不会做成链接。
 
 ## 账户接口（可选）
 

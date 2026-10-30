@@ -135,5 +135,8 @@ export type LibraryRevisionResult = { revision: number; updatedAt: string };
 export type ApiSuccess<T> = { code: 0; data: T; message: string; traceId: string };
 export type ApiFailure = { code: number; message: string; traceId: string; retryable: boolean };
 
+/** 上游给不出真实 id 时会填 "0" 或空串，这种不能做成链接 */
+export const hasId = (id?: string | null): id is string => !!id && id !== '0';
+
 /** 曲目封面：优先曲目自己的，其次专辑 */
 export const coverOf = (t: Track) => t.coverUrl ?? t.album?.coverUrl;

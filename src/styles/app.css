@@ -852,6 +852,14 @@ img {
   font-size: 18px;
   letter-spacing: -0.02em;
 }
+.toplist-desc {
+  font-size: 13px;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .toplist li {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);

@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import type { Track } from '../api';
+import { hasId, type Track } from '../api';
 import { libraryStore, toggleFavorite } from '../lib/account';
 import { formatTime, sideLabel } from '../lib/format';
 import { href } from '../lib/router';
@@ -75,7 +75,7 @@ export function TrackList({ tracks, sides = false, showAlbum = true }: Props) {
                 {t.artists.map((a, k) => (
                   <Fragment key={`${a.id}-${k}`}>
                     {k > 0 && ' / '}
-                    {a.id ? (
+                    {hasId(a.id) ? (
                       <a href={href.artist(a.id)} onClick={(e) => e.stopPropagation()}>
                         {a.name}
                       </a>
@@ -87,7 +87,7 @@ export function TrackList({ tracks, sides = false, showAlbum = true }: Props) {
               </span>
               {showAlbum && (
                 <span className="cell col-album">
-                  {t.album?.id ? (
+                  {hasId(t.album?.id) ? (
                     <a href={href.album(t.album.id)} onClick={(e) => e.stopPropagation()}>
                       {t.album.name}
                     </a>

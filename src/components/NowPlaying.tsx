@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { coverOf } from '../api';
+import { coverOf, hasId } from '../api';
 import { activeLineIndex, displayLines, isUnsynced } from '../lib/lrc';
 import { tweenScroll, useFrame } from '../lib/motion';
 import { tintVars, useTint } from '../lib/palette';
@@ -102,7 +102,7 @@ export function NowPlaying() {
                 {track.artists.map((a, i) => (
                   <Fragment key={`${a.id}-${i}`}>
                     {i > 0 && ' / '}
-                    {a.id ? (
+                    {hasId(a.id) ? (
                       <a href={href.artist(a.id)} onClick={close}>
                         {a.name}
                       </a>
@@ -111,10 +111,10 @@ export function NowPlaying() {
                     )}
                   </Fragment>
                 ))}
-                {track.album?.id && (
+                {hasId(track.album?.id) && (
                   <>
                     <span className="faint"> · </span>
-                    <a href={href.album(track.album.id)} onClick={close}>
+                    <a href={href.album(track.album!.id)} onClick={close}>
                       {track.album.name}
                     </a>
                   </>

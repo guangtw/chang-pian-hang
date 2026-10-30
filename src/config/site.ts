@@ -52,6 +52,25 @@ export const api = {
     libraryFavorite: '/api/account/library/favorites/:id',
     libraryRecent: '/api/account/library/recent',
   },
+  /**
+   * BFF 返回英文错误时给用户看的中文说明（code 见 BFF 的 src/lib/errors.ts）。
+   * 没列到的 code：后端给的是中文就原样显示，否则显示 fallback。
+   */
+  errorText: {
+    1000: '出了点意外，稍后再试。',
+    2003: '音乐服务有点忙，过一会儿再试。',
+    2004: '音乐服务响应太慢了，稍后再试。',
+    2005: '连不上音乐服务。',
+    2006: '音乐服务返回了看不懂的内容。',
+    2007: '音乐服务返回了看不懂的内容。',
+    3001: '找不到这首歌。',
+    3002: '这首歌暂时没有可用的音源。',
+    3003: '找不到这张歌单。',
+    3011: '暂时无法下载这首歌。',
+    4001: '缺少搜索关键词。',
+    5401: '账户服务未启用。',
+  } as Record<number, string>,
+  errorFallback: '请求失败，稍后再试。',
   /** 账户服务返回这些 code 表示服务未启用 / 会话失效 */
   codes: {
     accountDisabled: 5401,

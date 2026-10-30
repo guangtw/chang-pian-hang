@@ -37,6 +37,8 @@ export function Charts() {
                   <b>{t.name}</b>
                   {t.updateFrequency && <span className="mono faint">{t.updateFrequency}</span>}
                 </div>
+                {/* 有的后端不给前三名预览，那就显示榜单简介 */}
+                {!t.tracksPreview.length && t.description && <p className="toplist-desc">{t.description}</p>}
                 <ol>
                   {t.tracksPreview.slice(0, 3).map((tr, k) => (
                     <li key={tr.id}>

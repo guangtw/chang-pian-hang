@@ -1,4 +1,4 @@
-import type { DiscoverItem } from '../api';
+import { hasId, type DiscoverItem } from '../api';
 import { href } from './router';
 
 export type DiscoverAction =
@@ -7,11 +7,14 @@ export type DiscoverAction =
   | { kind: 'play'; trackId: string }
   | { kind: 'none' };
 
+/** 只有网页链接能在浏览器里打开；orpheus:// 之类是网易云 App 内部链接 */
+const isWebUrl = (url?: string) => !!url && /^https?:\/\//i.test(url);
+
 /** 推荐条目点开后去哪，与原项目 discover-action.ts 的语义一致 */
 export function resolveDiscover(item: DiscoverItem): DiscoverAction {
-  if (item.linkUrl) return { kind: 'external', url: item.linkUrl };
   const id = item.targetId;
-  if (!id || item.type === 'banner') return { kind: 'none' };
+  if (item.type === 'banner') return isWebUrl(item.linkUrl) ? { kind: 'external', url: item.linkUrl! } : { kind: 'none' };
+  if (!hasId(id)) return isWebUrl(item.linkUrl) ? { kind: 'external', url: item.linkUrl! } : { kind: 'none' };
   switch (item.type) {
     case 'track':
     case 'scene':
