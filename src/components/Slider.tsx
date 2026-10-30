@@ -68,7 +68,7 @@ export function Slider({ value, max, onCommit, onInput, label, className = '', f
       onKeyDown={onKeyDown}
     >
       <div className="bar-track">
-        <div className="bar-fill" style={{ width: `${pct}%` }} />
+        <div className="bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
       <div className="bar-thumb" style={{ left: `${pct}%` }} />
     </div>

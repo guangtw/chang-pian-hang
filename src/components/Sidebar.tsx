@@ -1,74 +1,65 @@
-import { api } from '../api';
-import { issueNumber } from '../lib/format';
+import { useLayoutEffect, useRef } from 'react';
+import { nav, site } from '../config/site';
+import { authStore, displayName } from '../lib/account';
+import { issueLabel } from '../lib/format';
 import { href, useRoute } from '../lib/router';
-import { sessionStore } from '../lib/session';
 import { useStore } from '../lib/store';
-import { useAsync } from '../lib/useAsync';
 import { uiStore } from '../player/ui';
-
-const NAV = [
-  { to: href.home(), key: '', label: '本期' },
-  { to: href.search(), key: 'search', label: '搜索' },
-  { to: href.library(), key: 'library', label: '唱片架' },
-  { to: href.settings(), key: 'settings', label: '设置' },
-];
+import { Avatar } from './Avatar';
 
 export function Sidebar() {
   const route = useRoute();
-  const user = useStore(sessionStore, (s) => s.user);
-  const lists = useAsync(() => (user ? api().getUserPlaylists(user.id) : Promise.resolve([])), [user?.id]);
+  const status = useStore(authStore, (s) => s.status);
+  const user = useStore(authStore, (s) => s.user);
   const section = route.parts[0] ?? '';
+  const navRef = useRef<HTMLDivElement>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
+
+  // 选中指示条滑到当前项（FLIP：直接改 transform，CSS 负责过渡）
+  useLayoutEffect(() => {
+    const box = navRef.current;
+    const pill = pillRef.current;
+    const el = box?.querySelector<HTMLElement>('a.on');
+    if (!box || !pill) return;
+    if (!el) {
+      pill.style.opacity = '0';
+      return;
+    }
+    const vertical = getComputedStyle(box).flexDirection === 'column';
+    pill.style.opacity = '1';
+    pill.style.width = `${el.offsetWidth}px`;
+    pill.style.height = `${el.offsetHeight}px`;
+    pill.style.transform = vertical ? `translateY(${el.offsetTop}px)` : `translateX(${el.offsetLeft}px)`;
+  }, [section]);
 
   return (
     <nav className="side" aria-label="主导航">
-      <a href={href.home()} className="logo">
-        唱片行
+      <a href={href.home()} className="brand">
+        <span className="brand-mark" aria-hidden="true" />
+        <span className="brand-name">{site.name}</span>
       </a>
-      <div className="logo-sub mono">
-        <span>第 {issueNumber()} 期</span>
-        <span>{api().name}</span>
-      </div>
+      <div className="brand-sub mono">{issueLabel()}</div>
 
-      <div className="side-label mono">目录</div>
-      <div className="nav">
-        {NAV.map((n) => (
-          <a key={n.key} href={n.to} className={section === n.key ? 'on' : ''}>
-            <span className="mark" />
+      <div className="nav" ref={navRef}>
+        <span className="nav-pill" ref={pillRef} aria-hidden="true" />
+        {nav.map((n) => (
+          <a key={n.key} href={n.to} className={section === n.key ? 'on' : ''} aria-current={section === n.key ? 'page' : undefined}>
             {n.label}
           </a>
         ))}
       </div>
 
-      <div className="side-lists">
-        {user && !!lists.data?.length && (
-          <>
-            <div className="side-label mono">我的歌单</div>
-            {lists.data.map((p) => (
-              <a
-                key={p.id}
-                href={href.playlist(p.id)}
-                style={route.path === `/playlist/${p.id}` ? { color: 'var(--accent)' } : undefined}
-              >
-                {p.name}
-              </a>
-            ))}
-          </>
-        )}
-      </div>
-
       <div className="side-foot">
-        {user ? (
-          <a href={href.library()} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            {user.avatar ? <img className="avatar" src={user.avatar} alt="" /> : <span className="avatar" />}
-            <span className="who" style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.nickname}
-            </span>
+        {status === 'authenticated' && user ? (
+          <a href={href.library()} className="who">
+            <Avatar user={user} size={30} />
+            <span className="who-name">{displayName(user)}</span>
           </a>
-        ) : (
-          <button className="btn" onClick={() => uiStore.set({ login: true })} style={{ height: 32, padding: '0 14px' }}>
-            登录
+        ) : status === 'guest' ? (
+          <button className="btn sm" onClick={() => uiStore.set({ login: true })}>
+            登录同步
           </button>
-        )}
+        ) : null}
       </div>
     </nav>
   );

@@ -1,11 +1,18 @@
-import { Fragment, useEffect, useRef } from 'react';
-import { activeLineIndex } from '../lib/lrc';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { coverOf } from '../api';
+import { activeLineIndex, displayLines, isUnsynced } from '../lib/lrc';
+import { tweenScroll, useFrame } from '../lib/motion';
+import { tintVars, useTint } from '../lib/palette';
 import { href } from '../lib/router';
 import { useStore } from '../lib/store';
-import { currentTrack, playerStore, seek } from '../player/player';
+import { audioTime, currentTrack, playerStore, seek } from '../player/player';
 import { uiStore } from '../player/ui';
-import { Cover } from './Cover';
 import { Icon } from './Icon';
+import { toggleNowPlaying } from './PlayerBar';
+import { Turntable } from './Turntable';
+
+/** 歌词提前一点点亮，唱到时刚好在中间 */
+const LEAD_MS = 220;
 
 export function NowPlaying() {
   const open = useStore(uiStore, (s) => s.nowPlaying);
@@ -15,93 +22,139 @@ export function NowPlaying() {
   const playing = useStore(playerStore, (s) => s.playing);
   const lyric = useStore(playerStore, (s) => s.lyric);
   const position = useStore(playerStore, (s) => s.position);
+  const tint = useTint(track ? coverOf(track) : undefined);
+
+  const lines = useMemo(() => displayLines(lyric), [lyric]);
+  const unsynced = isUnsynced(lines);
+  const [active, setActive] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
   const userScrolledAt = useRef(0);
+  const cancelTween = useRef<() => void>(() => undefined);
 
-  const lines = lyric?.lines ?? [];
-  const active = lyric?.unsynced ? -1 : activeLineIndex(lines, position + 250);
+  // 每帧算当前行，只有换行时才触发渲染
+  useFrame(() => {
+    if (unsynced || !lines.length) return;
+    const i = activeLineIndex(lines, (playing ? audioTime() : position) + LEAD_MS);
+    setActive((prev) => (prev === i ? prev : i));
+  }, open && playing);
 
-  // 当前行滚到中间；用户刚手动滚过的话先不抢
   useEffect(() => {
-    if (!open || active < 0 || Date.now() - userScrolledAt.current < 3000) return;
+    if (!open || !playing) setActive(unsynced ? -1 : activeLineIndex(lines, position + LEAD_MS));
+  }, [open, playing, position, lines, unsynced]);
+
+  // 当前行滚到视口 40% 处；用户刚手动滚过的话先不抢
+  useEffect(() => {
     const box = listRef.current;
-    const el = box?.children[active] as HTMLElement | undefined;
-    if (box && el) box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' });
+    if (!open || !box || active < 0 || Date.now() - userScrolledAt.current < 2500) return;
+    const el = box.children[active] as HTMLElement | undefined;
+    if (!el) return;
+    cancelTween.current();
+    cancelTween.current = tweenScroll(box, el.offsetTop - box.clientHeight * 0.4 + el.clientHeight / 2, 700);
   }, [active, open]);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && uiStore.set({ nowPlaying: false });
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && toggleNowPlaying(false);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
   useEffect(() => {
-    if (!track) uiStore.set({ nowPlaying: false });
-  }, [track]);
+    if (!track && open) uiStore.set({ nowPlaying: false });
+  }, [track, open]);
+
+  const close = () => toggleNowPlaying(false);
 
   return (
-    <section className={`nowplaying ${open ? 'open' : ''}`} aria-label="正在播放" aria-hidden={!open}>
-      <div className="nowplaying-bar">
+    <section
+      className={`nowplaying ${open ? 'open' : ''}`}
+      aria-label="正在播放"
+      aria-hidden={!open}
+      // React 18 的类型里还没有 inert，按原生属性传
+      {...(open ? {} : ({ inert: '' } as Record<string, string>))}
+      style={tintVars(tint)}
+    >
+      <div className="np-glow" aria-hidden="true">
+        <i />
+        <i />
+      </div>
+      <header className="np-head">
         <span className="mono">
-          正在播放 · 第 {String(index + 1).padStart(2, '0')} 首 / 共 {total} 首
+          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
-        <button className="btn ghost" onClick={() => uiStore.set({ nowPlaying: false })} tabIndex={open ? 0 : -1}>
+        <button className="btn ghost" onClick={close}>
           收起 <Icon name="down" />
         </button>
-      </div>
+      </header>
+
       {track && (
-        <div className="nowplaying-body">
-          <div style={{ alignSelf: 'center' }}>
-            <div className={`record ${playing ? 'spinning' : ''}`}>
-              <div className="disc" />
-              <Cover src={track.album.cover} alt={track.album.name} size={800} />
-            </div>
-            <div className="np-caption">
-              <div className="kicker">{track.alias ?? '本曲'}</div>
-              <h2>{track.name}</h2>
-              <p>
+        <div className="np-body">
+          <div className="np-deck-col">
+            <Turntable vtName={open ? 'np-disc' : undefined} />
+          </div>
+
+          <div className="np-info-col">
+            <div className="np-titles">
+              <h2 className="np-name" key={track.id}>
+                {track.name}
+              </h2>
+              <p className="np-by">
                 {track.artists.map((a, i) => (
                   <Fragment key={`${a.id}-${i}`}>
                     {i > 0 && ' / '}
-                    <a href={href.artist(a.id)} onClick={() => uiStore.set({ nowPlaying: false })}>
-                      {a.name}
-                    </a>
+                    {a.id ? (
+                      <a href={href.artist(a.id)} onClick={close}>
+                        {a.name}
+                      </a>
+                    ) : (
+                      a.name
+                    )}
                   </Fragment>
                 ))}
-                <span className="faint"> — </span>
-                <a href={href.album(track.album.id)} onClick={() => uiStore.set({ nowPlaying: false })}>
-                  《{track.album.name}》
-                </a>
+                {track.album?.id && (
+                  <>
+                    <span className="faint"> · </span>
+                    <a href={href.album(track.album.id)} onClick={close}>
+                      {track.album.name}
+                    </a>
+                  </>
+                )}
               </p>
             </div>
+
+            {lines.length ? (
+              <div
+                ref={listRef}
+                className={`lyrics ${unsynced ? 'unsynced' : ''}`}
+                onWheel={() => {
+                  userScrolledAt.current = Date.now();
+                  cancelTween.current();
+                }}
+                onTouchMove={() => {
+                  userScrolledAt.current = Date.now();
+                  cancelTween.current();
+                }}
+              >
+                {lines.map((l, i) => (
+                  <button
+                    key={i}
+                    className={`lyric-line ${i === active ? 'active' : ''} ${i < active ? 'past' : ''}`}
+                    style={{ '--d': active < 0 ? 3 : Math.min(5, Math.abs(i - active)) } as React.CSSProperties}
+                    onClick={() => {
+                      if (unsynced) return;
+                      userScrolledAt.current = 0;
+                      seek(l.timeMs);
+                    }}
+                  >
+                    <span>{l.text}</span>
+                    {l.translation && <small>{l.translation}</small>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="lyrics-empty">{lyric ? '纯音乐，安静听。' : '正在找歌词…'}</p>
+            )}
           </div>
-          {lines.length ? (
-            <div
-              ref={listRef}
-              className={`lyrics ${lyric?.unsynced ? 'unsynced' : ''}`}
-              onWheel={() => (userScrolledAt.current = Date.now())}
-              onTouchMove={() => (userScrolledAt.current = Date.now())}
-            >
-              {lines.map((l, i) => (
-                <button
-                  key={i}
-                  className={`lyric-line ${i === active ? 'active' : ''}`}
-                  onClick={() => {
-                    if (lyric?.unsynced) return;
-                    userScrolledAt.current = 0;
-                    seek(l.time);
-                  }}
-                  tabIndex={open ? 0 : -1}
-                >
-                  {l.text}
-                  {l.translation && <small>{l.translation}</small>}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="lyrics-empty">{lyric ? '这首歌没有歌词，安静听吧。' : '正在找歌词…'}</p>
-          )}
         </div>
       )}
     </section>

@@ -1,4 +1,6 @@
-import { api, type Lyric, type Track } from '../api';
+import { ApiError, coverOf, music, type Track, type TrackLyric } from '../api';
+import { api } from '../config/site';
+import { authStore, pushRecent } from '../lib/account';
 import { getSettings } from '../lib/settings';
 import { readJSON, writeJSON } from '../lib/storage';
 import { createStore } from '../lib/store';
@@ -11,16 +13,18 @@ export interface PlayerState {
   index: number;
   playing: boolean;
   loading: boolean;
-  /** 毫秒 */
+  /** 毫秒；低频更新（timeupdate），需要丝滑进度的地方用 audioTime() */
   position: number;
   duration: number;
   volume: number;
   muted: boolean;
   mode: PlayMode;
-  lyric: Lyric | null;
+  lyric: TrackLyric | null;
+  /** 当前是试听片段 */
+  preview: boolean;
 }
 
-const SAVE_KEY = 'cph.player';
+const SAVE_KEY = 'cph.player.v2';
 const saved = readJSON<Partial<PlayerState>>(SAVE_KEY, {});
 
 export const playerStore = createStore<PlayerState>({
@@ -29,22 +33,24 @@ export const playerStore = createStore<PlayerState>({
   playing: false,
   loading: false,
   position: 0,
-  duration: 0,
+  duration: saved.queue?.[saved.index ?? -1]?.durationMs ?? 0,
   volume: saved.volume ?? 0.8,
   muted: false,
   mode: saved.mode ?? 'order',
   lyric: null,
+  preview: false,
 });
 
 const audio = new Audio();
 audio.preload = 'auto';
 audio.volume = playerStore.get().volume;
 
-/** 当前已装进 <audio> 的曲目，用来判断要不要重新取地址 */
-let loadedId: string | null = null;
-/** 防止快速切歌时旧请求覆盖新请求 */
+/** 当前 <audio> 里装的是哪首、地址何时过期 */
+let loaded: { id: string; expiresAt: number } | null = null;
 let loadToken = 0;
-/** shuffle 模式下的回退历史 */
+/** 本次加载是否已经因为地址失效重取过一次 */
+let renewedOnce = false;
+let recentPushed = false;
 const history: number[] = [];
 
 const set = playerStore.set;
@@ -52,13 +58,18 @@ const get = playerStore.get;
 
 export const currentTrack = (s: PlayerState = get()) => s.queue[s.index] ?? null;
 
-// ---- 持久化（队列、位置、音量、模式） ----
+/** 高精度播放位置（毫秒），给进度条、歌词逐帧读取 */
+export const audioTime = () => audio.currentTime * 1000;
+export const audioDuration = () => (Number.isFinite(audio.duration) ? audio.duration * 1000 : get().duration);
+export const isAudioPlaying = () => !audio.paused;
+
+// ---- 持久化 ----
 let lastSaved = '';
 playerStore.subscribe(() => {
   const { queue, index, volume, mode } = get();
-  const snapshot = JSON.stringify({ queue, index, volume, mode });
-  if (snapshot !== lastSaved) {
-    lastSaved = snapshot;
+  const snap = JSON.stringify({ queue, index, volume, mode });
+  if (snap !== lastSaved) {
+    lastSaved = snap;
     writeJSON(SAVE_KEY, { queue, index, volume, mode });
   }
 });
@@ -71,7 +82,14 @@ audio.addEventListener('durationchange', () => {
 audio.addEventListener('play', () => set({ playing: true }));
 audio.addEventListener('pause', () => set({ playing: false }));
 audio.addEventListener('waiting', () => set({ loading: true }));
-audio.addEventListener('playing', () => set({ loading: false }));
+audio.addEventListener('playing', () => {
+  set({ loading: false });
+  const t = currentTrack();
+  if (t && !recentPushed) {
+    recentPushed = true;
+    pushRecent(t);
+  }
+});
 audio.addEventListener('ended', () => {
   if (get().mode === 'one') {
     audio.currentTime = 0;
@@ -79,47 +97,71 @@ audio.addEventListener('ended', () => {
   } else next(true);
 });
 audio.addEventListener('error', () => {
-  if (!audio.src) return;
+  if (!audio.getAttribute('src')) return;
+  const at = audio.currentTime * 1000;
+  // 播放地址是短时效的：第一次出错先续签再接着放
+  if (!renewedOnce) {
+    renewedOnce = true;
+    void resolveAndPlay(get().index, { resumeAt: at, autoplay: true });
+    return;
+  }
   set({ loading: false, playing: false });
   toast('这首歌加载失败，换下一首。');
   next(true);
 });
 
-async function load(index: number, autoplay = true, skipped = 0) {
+function expiryOf(src: { expiresAt?: string; ttlSeconds?: number }) {
+  if (src.expiresAt) return Date.parse(src.expiresAt);
+  if (src.ttlSeconds) return Date.now() + src.ttlSeconds * 1000;
+  return Infinity;
+}
+
+const expiringSoon = () => !!loaded && Date.now() > loaded.expiresAt - api.playUrlRenewLeadSeconds * 1000;
+
+/** 取播放地址并装进 <audio>；resumeAt 用于续签后从原位置继续 */
+async function resolveAndPlay(index: number, opts: { autoplay?: boolean; resumeAt?: number; skipped?: number } = {}) {
   const { queue } = get();
   const track = queue[index];
   if (!track) return;
+  const fresh = opts.resumeAt == null;
   const token = ++loadToken;
-  set({ index, loading: true, position: 0, duration: track.duration, lyric: null });
-  updateMediaSession(track);
+  if (fresh) {
+    renewedOnce = false;
+    recentPushed = false;
+    set({ index, position: 0, duration: track.durationMs, lyric: null, preview: false });
+    updateMediaSession(track);
+    loadLyric(track.id, token);
+  }
+  set({ loading: true });
 
   try {
-    const src = await api().getSongSource(track.id, getSettings().quality);
+    const src = await music.playUrl(track.id, getSettings().quality, authStore.get().token);
     if (token !== loadToken) return;
-    if (!src.url) {
-      if (skipped + 1 >= queue.length) {
-        set({ loading: false, playing: false });
-        toast('队列里的歌都暂时听不了。');
-        return;
-      }
-      toast(`《${track.name}》暂时听不了，已跳过。`);
-      return load(nextIndex(index), autoplay, skipped + 1);
-    }
-    if (src.trial) toast('只有试听片段，完整版需要后端账号有对应权限。');
-    loadedId = String(track.id);
+    if (!src.url) throw new ApiError('没有可用的播放地址', 0, 0);
+    loaded = { id: track.id, expiresAt: expiryOf(src) };
     audio.src = src.url;
-    if (autoplay) await audio.play().catch(() => set({ playing: false }));
-    else set({ loading: false });
+    if (opts.resumeAt) audio.currentTime = opts.resumeAt / 1000;
+    set({ preview: src.preview });
+    if (fresh && src.preview) toast(src.restrictionReason || '这首只能试听片段。');
+    if (opts.autoplay !== false) await audio.play().catch(() => set({ playing: false }));
+    set({ loading: false });
   } catch (e) {
     if (token !== loadToken) return;
+    const skipped = (opts.skipped ?? 0) + 1;
+    if (fresh && skipped < queue.length) {
+      toast(`《${track.name}》暂时放不了：${(e as Error).message}`);
+      return resolveAndPlay(nextIndex(index), { ...opts, skipped });
+    }
     set({ loading: false, playing: false });
     toast((e as Error).message || '获取播放地址失败。');
   }
+}
 
-  api()
-    .getLyric(track.id)
+function loadLyric(id: string, token: number) {
+  music
+    .lyric(id)
     .then((lyric) => token === loadToken && set({ lyric }))
-    .catch(() => token === loadToken && set({ lyric: { lines: [] } }));
+    .catch(() => token === loadToken && set({ lyric: { trackId: id, lines: [] } }));
 }
 
 function nextIndex(from: number): number {
@@ -135,13 +177,10 @@ function nextIndex(from: number): number {
 // ---- 对外操作 ----
 
 export function playList(tracks: Track[], start = 0) {
-  const list = tracks.filter((t) => t.playable !== false);
-  if (!list.length) return toast('这里没有能播放的歌。');
-  const startTrack = tracks[start];
-  const idx = Math.max(0, list.findIndex((t) => t.id === startTrack?.id));
+  if (!tracks.length) return toast('这里没有能播放的歌。');
   history.length = 0;
-  set({ queue: list, index: idx });
-  void load(idx);
+  set({ queue: tracks, index: start });
+  void resolveAndPlay(start);
 }
 
 export function playTrack(track: Track) {
@@ -154,28 +193,39 @@ export function playTrack(track: Track) {
   jumpTo(index + 1);
 }
 
+/** 只知道 id 时（例如首页推荐里的单曲）先取详情再播 */
+export async function playTrackById(id: string) {
+  try {
+    playTrack(await music.track(id));
+  } catch (e) {
+    toast((e as Error).message);
+  }
+}
+
 export function addNext(track: Track) {
-  const { queue, index } = get();
-  const q = queue.filter((t) => t.id !== track.id);
+  const { queue } = get();
   const cur = currentTrack();
+  const q = queue.filter((t) => t.id === cur?.id || t.id !== track.id);
   const at = cur ? q.findIndex((t) => t.id === cur.id) + 1 : 0;
   q.splice(at, 0, track);
-  set({ queue: q, index: cur ? at - 1 : index });
+  set({ queue: q, index: cur ? at - 1 : get().index });
   toast(`《${track.name}》会在下一首播放。`);
 }
 
 export function jumpTo(i: number) {
   if (get().index >= 0) history.push(get().index);
-  void load(i);
+  void resolveAndPlay(i);
 }
 
 export function toggle() {
   const s = get();
   const track = currentTrack(s);
   if (!track) return;
-  if (loadedId !== String(track.id)) return void load(s.index);
-  if (audio.paused) void audio.play();
-  else audio.pause();
+  if (loaded?.id !== track.id) return void resolveAndPlay(s.index);
+  if (!audio.paused) return audio.pause();
+  // 暂停太久地址可能过期，先续签
+  if (expiringSoon()) return void resolveAndPlay(s.index, { resumeAt: audio.currentTime * 1000, autoplay: true });
+  void audio.play();
 }
 
 export function next(auto = false) {
@@ -186,7 +236,7 @@ export function next(auto = false) {
     return;
   }
   history.push(index);
-  void load(nextIndex(index));
+  void resolveAndPlay(nextIndex(index));
 }
 
 export function prev() {
@@ -197,13 +247,12 @@ export function prev() {
     return;
   }
   const back = mode === 'shuffle' ? history.pop() : undefined;
-  void load(back ?? (index - 1 + queue.length) % queue.length);
+  void resolveAndPlay(back ?? (index - 1 + queue.length) % queue.length);
 }
 
 export function seek(ms: number) {
   const track = currentTrack();
-  if (!track) return;
-  if (loadedId !== String(track.id)) return;
+  if (!track || loaded?.id !== track.id) return;
   audio.currentTime = Math.max(0, ms / 1000);
   set({ position: ms });
 }
@@ -233,36 +282,40 @@ export function cycleMode() {
   toast(MODE_LABEL[mode]);
 }
 
+function unload() {
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  loaded = null;
+}
+
 export function removeAt(i: number) {
   const { queue, index } = get();
   const q = queue.filter((_, k) => k !== i);
   if (i === index) {
-    audio.pause();
-    audio.removeAttribute('src');
-    loadedId = null;
+    unload();
     set({ queue: q, index: q.length ? Math.min(i, q.length - 1) : -1, playing: false, position: 0 });
-    if (q.length) void load(Math.min(i, q.length - 1));
+    if (q.length) void resolveAndPlay(Math.min(i, q.length - 1));
   } else {
     set({ queue: q, index: i < index ? index - 1 : index });
   }
 }
 
 export function clearQueue() {
-  audio.pause();
-  audio.removeAttribute('src');
-  loadedId = null;
+  unload();
   history.length = 0;
   set({ queue: [], index: -1, playing: false, position: 0, duration: 0, lyric: null });
 }
 
-// ---- 系统媒体控制（锁屏、耳机按键） ----
+// ---- 系统媒体控制 ----
 function updateMediaSession(track: Track) {
   if (!('mediaSession' in navigator)) return;
+  const cover = coverOf(track);
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.name,
     artist: track.artists.map((a) => a.name).join(' / '),
-    album: track.album.name,
-    artwork: track.album.cover ? [{ src: track.album.cover, sizes: '512x512' }] : [],
+    album: track.album?.name ?? '',
+    artwork: cover ? [{ src: cover, sizes: '512x512' }] : [],
   });
 }
 

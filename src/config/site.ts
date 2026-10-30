@@ -1,0 +1,113 @@
+// 站点配置：文案、导航、首页版式、接口路径都在这里改，组件里不写死。
+// 构建时可用 VITE_* 环境变量覆盖其中几项（见 .env.example）。
+import type { DiscoverItemType, PlayQualityLevel } from '../api/types';
+
+const env = import.meta.env;
+
+export type BlockLayout = 'banner' | 'grid' | 'shelf' | 'chart' | 'list';
+
+export const site = {
+  name: (env.VITE_SITE_NAME as string) || '唱片行',
+  /** 刊头小字。{n} 会被替换为期号 */
+  issueLabel: '第 {n} 期',
+  /** 期号起算日（每周一期） */
+  issueEpoch: '2024-01-01',
+  issueCadence: '每周五出刊',
+  footerNote: '数据由站内 BFF 提供',
+} as const;
+
+export const api = {
+  /** BFF 地址。留空 = 与前端同源（部署在同一域名下，或开发时走 Vite 代理） */
+  base: ((env.VITE_API_BASE as string) || '').replace(/\/+$/, ''),
+  pageSize: 30,
+  /** 播放地址过期前提前多少秒续签 */
+  playUrlRenewLeadSeconds: 20,
+  /** 已登录时，多久从云端拉一次收藏/最近播放（毫秒） */
+  libraryPullIntervalMs: 5 * 60_000,
+  /** 本地最多保留多少条最近播放 */
+  recentLimit: 100,
+  paths: {
+    discoverHome: '/api/music/discover/home',
+    searchAssist: '/api/music/discover/search-assist',
+    searchTracks: '/api/music/search',
+    searchArtists: '/api/music/search/artists',
+    searchPlaylists: '/api/music/search/playlists',
+    track: '/api/music/track/:id',
+    playUrl: '/api/music/track/:id/play-url',
+    lyric: '/api/music/track/:id/lyric',
+    qualityOptions: '/api/music/track/:id/quality-options',
+    playlist: '/api/music/playlist/:id',
+    toplists: '/api/music/toplist',
+    toplist: '/api/music/toplist/:id',
+    album: '/api/music/album/:id',
+    artist: '/api/music/artist/:id',
+
+    authLogin: '/api/account/auth/login',
+    authRegister: '/api/account/auth/register',
+    authRefresh: '/api/account/auth/refresh',
+    authMe: '/api/account/auth/me',
+    authLogout: '/api/account/auth/logout',
+    librarySnapshot: '/api/account/library/snapshot',
+    libraryFavorites: '/api/account/library/favorites',
+    libraryFavorite: '/api/account/library/favorites/:id',
+    libraryRecent: '/api/account/library/recent',
+  },
+  /** 账户服务返回这些 code 表示服务未启用 / 会话失效 */
+  codes: {
+    accountDisabled: 5401,
+    invalidSession: [5203, 5204],
+  },
+} as const;
+
+export const nav: { key: string; label: string; to: string }[] = [
+  { key: '', label: '本期', to: '#/' },
+  { key: 'search', label: '搜索', to: '#/search' },
+  { key: 'charts', label: '榜单', to: '#/charts' },
+  { key: 'library', label: '唱片架', to: '#/library' },
+  { key: 'settings', label: '设置', to: '#/settings' },
+];
+
+/**
+ * 首页版式：后端返回的每个推荐区块按这里决定怎么排。
+ * 先看区块 id 有没有指定，没有就按区块里大多数条目的类型来定。
+ */
+export const homeLayout = {
+  byBlockId: {
+    'discover-banner': 'banner',
+    'discover-toplist': 'chart',
+  } as Record<string, BlockLayout>,
+  byItemType: {
+    banner: 'banner',
+    playlist: 'grid',
+    album: 'shelf',
+    artist: 'shelf',
+    toplist: 'chart',
+    track: 'list',
+    scene: 'grid',
+  } as Record<DiscoverItemType, BlockLayout>,
+  /** 封面故事取哪个区块的第一项；找不到就用第一个 grid 区块 */
+  featureBlockId: 'discover-personalized',
+  /** 每种版式最多展示几项 */
+  limits: { banner: 8, grid: 8, shelf: 12, chart: 8, list: 10 } as Record<BlockLayout, number>,
+};
+
+export const qualities: { key: PlayQualityLevel; label: string }[] = [
+  { key: 'standard', label: '标准' },
+  { key: 'higher', label: '较高' },
+  { key: 'exhigh', label: '极高' },
+  { key: 'lossless', label: '无损' },
+  { key: 'hires', label: 'Hi-Res' },
+];
+
+export const defaultQuality: PlayQualityLevel = ((env.VITE_DEFAULT_QUALITY as PlayQualityLevel) || 'exhigh');
+
+export const searchTabs = [
+  { key: 'track', label: '单曲' },
+  { key: 'artist', label: '艺人' },
+  { key: 'playlist', label: '歌单' },
+] as const;
+
+/** 图片缩略：网易云图片支持 ?param=WxH，后端换了图床可关掉 */
+export const image = {
+  resizeParam: (env.VITE_IMAGE_RESIZE as string) !== 'off',
+};

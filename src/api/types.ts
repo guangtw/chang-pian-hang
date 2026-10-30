@@ -1,143 +1,139 @@
-// 前端内部使用的领域模型。后端返回什么格式都先在 provider 里归一成这些类型，
-// 视图层只认这里的字段。
+// 与 miningqwqmusic BFF（src/types/music.ts、src/types/account.ts）保持一致的数据结构。
+// BFF 改了字段，就改这里。
 
-export type ID = string | number;
+export type Artist = { id: string; name: string; coverUrl?: string };
+export type Album = { id: string; name: string; coverUrl?: string };
 
-export interface ArtistRef {
-  id: ID;
+export type Track = {
+  id: string;
   name: string;
-}
+  artists: Artist[];
+  album?: Album;
+  durationMs: number;
+  coverUrl?: string;
+};
 
-export interface AlbumRef {
-  id: ID;
+export type Playlist = {
+  id: string;
   name: string;
-  cover?: string;
-}
-
-export interface Track {
-  id: ID;
-  name: string;
-  /** 别名 / 译名，例如「（电影《xx》插曲）」 */
-  alias?: string;
-  artists: ArtistRef[];
-  album: AlbumRef;
-  /** 毫秒 */
-  duration: number;
-  /** 后端标记为付费 / 无版权时为 false，播放时会跳过 */
-  playable?: boolean;
-}
-
-export interface Playlist {
-  id: ID;
-  name: string;
-  cover?: string;
   description?: string;
-  creator?: { id: ID; name: string; avatar?: string };
-  trackCount?: number;
-  playCount?: number;
-  tags?: string[];
-  updatedAt?: number;
-}
-
-export interface PlaylistDetail extends Playlist {
+  coverUrl?: string;
   tracks: Track[];
-}
+};
 
-export interface Album {
-  id: ID;
-  name: string;
-  cover?: string;
-  artists: ArtistRef[];
-  publishTime?: number;
-  company?: string;
-  description?: string;
-  trackCount?: number;
-}
+export type PlayQualityLevel =
+  | 'standard'
+  | 'higher'
+  | 'exhigh'
+  | 'lossless'
+  | 'hires'
+  | 'jyeffect'
+  | 'sky'
+  | 'dolby'
+  | 'jymaster';
 
-export interface AlbumDetail extends Album {
-  tracks: Track[];
-}
-
-export interface Artist {
-  id: ID;
-  name: string;
-  avatar?: string;
-  description?: string;
-  albumCount?: number;
-  trackCount?: number;
-}
-
-export interface ArtistDetail extends Artist {
-  hotTracks: Track[];
-  albums: Album[];
-}
-
-export interface Toplist extends Playlist {
-  updateFrequency?: string;
-}
-
-export interface SongSource {
-  id: ID;
-  /** null 表示无法播放（无版权、需要会员等） */
-  url: string | null;
-  /** 码率 bps */
+export type PlaySource = {
+  trackId: string;
+  url: string;
+  preview: boolean;
+  level?: PlayQualityLevel;
   bitrate?: number;
-  /** 试听片段，单位毫秒 */
-  trial?: { start: number; end: number };
-}
+  restrictionReason?: string;
+  expiresAt?: string;
+  ttlSeconds?: number;
+};
 
-export interface LyricLine {
-  /** 毫秒 */
-  time: number;
-  text: string;
-  translation?: string;
-}
+export type LyricLine = { timeMs: number; text: string };
 
-export interface Lyric {
+export type TrackLyric = {
+  trackId: string;
   lines: LyricLine[];
-  /** 纯音乐 / 没有时间轴的歌词 */
-  unsynced?: boolean;
-}
+  raw?: string;
+  translatedLines?: LyricLine[];
+};
 
-export type SearchType = 'track' | 'album' | 'artist' | 'playlist';
+export type PagedResult<T> = { items: T[]; page: number; pageSize: number; total: number };
 
-export interface SearchResult<T> {
-  items: T[];
-  total: number;
-}
+export type DiscoverItemType = 'track' | 'playlist' | 'album' | 'artist' | 'toplist' | 'banner' | 'scene';
 
-export interface HotKeyword {
-  word: string;
-  hint?: string;
-}
+export type DiscoverItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  coverUrl?: string;
+  type: DiscoverItemType;
+  targetId?: string;
+  linkUrl?: string;
+};
 
-export interface UserProfile {
-  id: ID;
-  nickname: string;
-  avatar?: string;
-  signature?: string;
-}
+export type DiscoverBlock = { id: string; title: string; items: DiscoverItem[] };
 
-export type QrStatus =
-  | { state: 'waiting' }
-  | { state: 'scanned'; nickname?: string; avatar?: string }
-  | { state: 'confirmed'; cookie?: string }
-  | { state: 'expired' };
+export type SearchAssist = { defaultKeyword?: string; hotKeywords: string[]; suggestions: string[] };
 
-export interface QrLogin {
-  key: string;
-  /** 二维码图片（data URL），没有的话前端用 qrUrl 自行生成 */
-  image?: string;
-  qrUrl: string;
-}
+export type DiscoverData = { blocks: DiscoverBlock[]; searchAssist: SearchAssist };
 
-export type Quality = 'standard' | 'higher' | 'exhigh' | 'lossless' | 'hires';
+export type ToplistItem = {
+  id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string;
+  updateFrequency?: string;
+  tracksPreview: Track[];
+};
 
-export interface HomeFeed {
-  /** 封面故事：取第一个推荐歌单 */
-  playlists: Playlist[];
-  newAlbums: Album[];
-  toplists: Toplist[];
-  /** 登录后才有 */
-  dailyTracks?: Track[];
-}
+export type AlbumDetail = {
+  id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string;
+  publishTime?: number;
+  artists: Artist[];
+  tracks: Track[];
+};
+
+export type ArtistDetail = {
+  id: string;
+  name: string;
+  coverUrl?: string;
+  briefDesc?: string;
+  topTracks: Track[];
+};
+
+export type ArtistSearchItem = { id: string; name: string; coverUrl?: string; musicSize?: number; albumSize?: number };
+
+export type TrackQualityAvailability = {
+  trackId: string;
+  availableLevels: PlayQualityLevel[];
+  fallbackMap: Partial<Record<PlayQualityLevel, PlayQualityLevel>>;
+};
+
+// ---- 账户 ----
+
+export type AccountUser = {
+  id: string;
+  email: string;
+  nickname?: string | null;
+  avatarUrl?: string | null;
+  avatarFallbackText?: string;
+  avatarFallbackBg?: string;
+};
+
+export type AuthTokenData = { accessToken: string; user?: AccountUser };
+export type AuthPayload = AuthTokenData & { user: AccountUser };
+
+export type LibrarySnapshot = {
+  revision: number;
+  favorites: Record<string, Track>;
+  recent: Track[];
+  updatedAt: string;
+};
+
+export type LibraryRevisionResult = { revision: number; updatedAt: string };
+
+// ---- 统一响应外壳 ----
+
+export type ApiSuccess<T> = { code: 0; data: T; message: string; traceId: string };
+export type ApiFailure = { code: number; message: string; traceId: string; retryable: boolean };
+
+/** 曲目封面：优先曲目自己的，其次专辑 */
+export const coverOf = (t: Track) => t.coverUrl ?? t.album?.coverUrl;

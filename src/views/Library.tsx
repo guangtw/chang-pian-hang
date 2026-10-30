@@ -1,94 +1,77 @@
-import { api } from '../api';
-import { PlaylistCard } from '../components/Cards';
+import { useState } from 'react';
+import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
-import { Empty, ErrorState, Loading } from '../components/States';
+import { Empty } from '../components/States';
 import { TrackList } from '../components/TrackList';
-import { logout, sessionStore } from '../lib/session';
+import { authStore, displayName, libraryStore, logout, pullLibrary } from '../lib/account';
 import { useStore } from '../lib/store';
-import { useAsync } from '../lib/useAsync';
+import { useEffect } from 'react';
 import { playList } from '../player/player';
 import { uiStore } from '../player/ui';
 
+type Tab = 'favorites' | 'recent';
+
 export function Library() {
-  const user = useStore(sessionStore, (s) => s.user);
-  const checked = useStore(sessionStore, (s) => s.checked);
-  const liked = useStore(sessionStore, (s) => s.liked);
+  const status = useStore(authStore, (s) => s.status);
+  const user = useStore(authStore, (s) => s.user);
+  const favorites = useStore(libraryStore, (s) => s.favorites);
+  const order = useStore(libraryStore, (s) => s.favoriteOrder);
+  const recent = useStore(libraryStore, (s) => s.recent);
+  const [tab, setTab] = useState<Tab>('favorites');
 
-  // 只在登录用户变化时拉一次；取消收藏后列表保持不变，避免正在看的行突然消失
-  const likedTracks = useAsync(
-    () => (user ? api().getTracks([...sessionStore.get().liked].slice(0, 200)) : Promise.resolve([])),
-    [user?.id],
-  );
-  const lists = useAsync(() => (user ? api().getUserPlaylists(user.id) : Promise.resolve([])), [user?.id]);
+  useEffect(() => {
+    void pullLibrary();
+  }, []);
 
-  if (!checked) return <div className="page"><Loading /></div>;
-
-  if (!user) {
-    return (
-      <div className="page">
-        <Empty title="你的唱片架还空着">
-          <p>登录后，收藏的歌和建过的歌单都会摆在这里。</p>
-          <p style={{ marginTop: 18 }}>
-            <button className="btn solid" onClick={() => uiStore.set({ login: true })}>
-              扫码登录
-            </button>
-          </p>
-        </Empty>
-      </div>
-    );
-  }
+  // 进入页面时固定一次顺序，取消收藏不会让行立刻消失
+  const [favSnapshot] = useState(() => order.map((id) => favorites[id]).filter(Boolean));
+  const favList = favSnapshot.length ? favSnapshot : order.map((id) => favorites[id]).filter(Boolean);
+  const list = tab === 'favorites' ? favList : recent;
 
   return (
     <div className="page">
-      <header className="detail-head" style={{ gridTemplateColumns: '96px minmax(0,1fr)', alignItems: 'center' }}>
-        {user.avatar ? (
-          <img className="avatar" src={user.avatar} alt="" style={{ width: 96, height: 96 }} />
-        ) : (
-          <span className="avatar" style={{ width: 96, height: 96 }} />
-        )}
-        <div>
-          <div className="kicker">会员卡</div>
-          <h1 style={{ margin: '6px 0' }}>{user.nickname}</h1>
-          {user.signature && <p className="muted serif">{user.signature}</p>}
-        </div>
+      <header className="page-head reveal">
+        <div className="kicker">唱片架</div>
+        <h1 className="page-title">{user ? displayName(user) : '我的唱片架'}</h1>
+        {status === 'authenticated' && user ? (
+          <div className="account-line">
+            <Avatar user={user} size={28} />
+            <span className="muted small">{user.email} · 已同步</span>
+            <button className="text-btn" onClick={logout}>
+              退出
+            </button>
+          </div>
+        ) : status === 'guest' ? (
+          <div className="account-line">
+            <span className="muted small">收藏只存在这台设备上。</span>
+            <button className="text-btn" onClick={() => uiStore.set({ login: true })}>
+              登录后同步
+            </button>
+          </div>
+        ) : null}
       </header>
 
-      <section className="section" style={{ marginTop: 40 }}>
-        <div className="section-head">
-          <span className="kicker">01</span>
-          <h2>我收藏的歌</h2>
-          <span className="mono faint">{liked.size} 首</span>
-          {!!likedTracks.data?.length && (
-            <button className="btn ghost more" onClick={() => playList(likedTracks.data!)}>
-              <Icon name="play" /> 全部播放
-            </button>
-          )}
-        </div>
-        {likedTracks.loading && <Loading rows={4} />}
-        {likedTracks.error && <ErrorState error={likedTracks.error} onRetry={likedTracks.reload} />}
-        {likedTracks.data?.length === 0 && <p className="muted">还没收藏过歌。在曲目旁边点一下心形就能收藏。</p>}
-        {!!likedTracks.data?.length && <TrackList tracks={likedTracks.data} />}
-      </section>
-
-      <section className="section">
-        <div className="section-head">
-          <span className="kicker">02</span>
-          <h2>我的歌单</h2>
-        </div>
-        {lists.loading && <Loading rows={3} />}
-        {lists.error && <ErrorState error={lists.error} onRetry={lists.reload} />}
-        <div className="grid-4">
-          {lists.data?.map((p) => (
-            <PlaylistCard key={p.id} p={p} />
-          ))}
-        </div>
-      </section>
-
-      <p style={{ marginTop: 48 }}>
-        <button className="btn" onClick={logout}>
-          退出登录
+      <div className="seg" role="tablist" style={{ marginTop: 8 }}>
+        <button role="tab" aria-selected={tab === 'favorites'} className={tab === 'favorites' ? 'on' : ''} onClick={() => setTab('favorites')}>
+          收藏 <span className="mono">{order.length}</span>
         </button>
-      </p>
+        <button role="tab" aria-selected={tab === 'recent'} className={tab === 'recent' ? 'on' : ''} onClick={() => setTab('recent')}>
+          最近播放 <span className="mono">{recent.length}</span>
+        </button>
+        {list.length > 0 && (
+          <button className="seg-action" onClick={() => playList(list)}>
+            <Icon name="play" size={14} /> 全部播放
+          </button>
+        )}
+      </div>
+
+      {list.length === 0 ? (
+        <Empty title={tab === 'favorites' ? '还没有收藏' : '还没听过歌'}>
+          <p className="muted">{tab === 'favorites' ? '在任意曲目旁点一下心形，它就会摆到这里。' : '放一首歌，这里就会记下来。'}</p>
+        </Empty>
+      ) : (
+        <TrackList key={tab} tracks={list} />
+      )}
     </div>
   );
 }

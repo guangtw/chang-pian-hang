@@ -1,3 +1,5 @@
+import { site } from '../config/site';
+
 export function formatTime(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) ms = 0;
   const total = Math.floor(ms / 1000);
@@ -26,10 +28,12 @@ export function issueDate(d = new Date()): string {
   return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${WEEK[d.getDay()]}`;
 }
 
-/** 刊号：以 2024-01-01 为第 1 期，每周一期 */
+/** 刊号：从 site.issueEpoch 起算，每周一期 */
 export function issueNumber(d = new Date()): number {
-  return Math.floor((d.getTime() - new Date(2024, 0, 1).getTime()) / (7 * 86400000)) + 1;
+  return Math.max(1, Math.floor((d.getTime() - Date.parse(site.issueEpoch)) / (7 * 86400000)) + 1);
 }
+
+export const issueLabel = () => site.issueLabel.replace('{n}', String(issueNumber()));
 
 /** 唱片的 A/B 面编号：前一半是 A 面，后一半是 B 面 */
 export function sideLabel(i: number, total: number): string {

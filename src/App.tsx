@@ -1,19 +1,21 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import type { SearchType } from './api';
+import { coverOf } from './api';
 import { LoginDialog } from './components/LoginDialog';
 import { NowPlaying } from './components/NowPlaying';
-import { PlayerBar } from './components/PlayerBar';
+import { PlayerBar, toggleNowPlaying } from './components/PlayerBar';
 import { QueueDrawer } from './components/QueueDrawer';
 import { Sidebar } from './components/Sidebar';
 import { Empty } from './components/States';
 import { Toast } from './components/Toast';
+import { restoreSession } from './lib/account';
+import { applyGlobalTint, DEFAULT_TINT, tintOf } from './lib/palette';
 import { href, navigate, useRoute, type Route } from './lib/router';
-import { refreshSession } from './lib/session';
 import { getSettings, subscribeSettings } from './lib/settings';
-import { next, playerStore, prev, seek, toggle } from './player/player';
+import { useStore } from './lib/store';
+import { currentTrack, next, playerStore, prev, seek, toggle } from './player/player';
 import { uiStore } from './player/ui';
-import { ArtistView } from './views/ArtistView';
-import { AlbumView, PlaylistView } from './views/Collection';
+import { Charts } from './views/Charts';
+import { AlbumView, ArtistView, PlaylistView } from './views/Collection';
 import { Home } from './views/Home';
 import { Library } from './views/Library';
 import { SearchView } from './views/SearchView';
@@ -25,13 +27,17 @@ function View({ route }: { route: Route }) {
     case undefined:
       return <Home />;
     case 'playlist':
-      return <PlaylistView id={id} />;
+      return <PlaylistView id={id} source="playlist" />;
+    case 'toplist':
+      return <PlaylistView id={id} source="toplist" />;
     case 'album':
       return <AlbumView id={id} />;
     case 'artist':
       return <ArtistView id={id} />;
     case 'search':
-      return <SearchView q={route.query.get('q') ?? ''} type={(route.query.get('type') as SearchType) || 'track'} />;
+      return <SearchView q={route.query.get('q') ?? ''} type={route.query.get('type') ?? ''} />;
+    case 'charts':
+      return <Charts />;
     case 'library':
       return <Library />;
     case 'settings':
@@ -39,9 +45,9 @@ function View({ route }: { route: Route }) {
     default:
       return (
         <div className="page">
-          <Empty title="这一页被撕掉了">
+          <Empty title="这一面没有刻纹">
             <a className="btn" href={href.home()} style={{ marginTop: 18 }}>
-              回到本期
+              回到首页
             </a>
           </Empty>
         </div>
@@ -67,7 +73,7 @@ function useShortcuts() {
         if (e.shiftKey) prev();
         else seek(position - 5000);
       } else if (e.key === 'l' || e.key === 'L') {
-        uiStore.set({ nowPlaying: !uiStore.get().nowPlaying, queue: false });
+        toggleNowPlaying();
       } else if (e.key === '/') {
         e.preventDefault();
         navigate(href.search());
@@ -81,29 +87,43 @@ function useShortcuts() {
 export function App() {
   const route = useRoute();
   const settings = useSyncExternalStore(subscribeSettings, getSettings);
+  const cover = useStore(playerStore, (s) => {
+    const t = currentTrack(s);
+    return t ? coverOf(t) : undefined;
+  });
   const mainRef = useRef<HTMLElement>(null);
 
   useShortcuts();
 
   useEffect(() => {
-    if (settings.theme === 'auto') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.dataset.theme = settings.theme;
-  }, [settings.theme]);
+    void restoreSession();
+  }, []);
 
-  // 换了后端或登录凭证就重新拉登录状态
   useEffect(() => {
-    void refreshSession();
-  }, [settings.apiBase, settings.cookie]);
+    const root = document.documentElement;
+    if (settings.theme === 'auto') root.removeAttribute('data-theme');
+    else root.dataset.theme = settings.theme;
+    root.dataset.motion = settings.motion;
+  }, [settings.theme, settings.motion]);
 
-  // 切页时回到顶部，并收起正在播放页
+  // 全站强调色跟着正在播放的封面走（CSS 里注册了 @property，会平滑过渡）
+  useEffect(() => {
+    let alive = true;
+    if (!cover) applyGlobalTint(DEFAULT_TINT);
+    else tintOf(cover).then((t) => alive && applyGlobalTint(t));
+    return () => {
+      alive = false;
+    };
+  }, [cover]);
+
+  // 切页时回到顶部，收起浮层
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0);
     uiStore.set({ nowPlaying: false, queue: false });
-  }, [route.path, route.query.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [route.path]);
 
   return (
-    // 换数据源时整体重挂，避免旧数据残留
-    <div className="app" key={settings.apiBase}>
+    <div className="app">
       <Sidebar />
       <main className="main" ref={mainRef}>
         <View route={route} />

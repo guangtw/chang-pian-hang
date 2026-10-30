@@ -1,28 +1,19 @@
-import type { Quality } from '../api/types';
+import type { PlayQualityLevel } from '../api/types';
+import { defaultQuality } from '../config/site';
 import { readJSON, writeJSON } from './storage';
 
 export type Theme = 'paper' | 'night' | 'auto';
 
 export interface Settings {
-  /** 后端地址，例如 http://127.0.0.1:3000。留空 = 使用示例数据 */
-  apiBase: string;
-  /** 登录后后端返回的 cookie，请求时会作为 cookie 参数带上 */
-  cookie: string;
-  /** 是否让浏览器带上跨域 cookie（后端与前端同源或已配好 CORS 时可开） */
-  withCredentials: boolean;
-  quality: Quality;
+  quality: PlayQualityLevel;
   theme: Theme;
+  /** 尊重系统「减少动态效果」之外，用户也可以手动关掉大部分动画 */
+  motion: 'full' | 'reduced';
 }
 
-const KEY = 'cph.settings';
+const KEY = 'cph.settings.v2';
 
-const defaults: Settings = {
-  apiBase: (import.meta.env.VITE_API_BASE as string | undefined) ?? '',
-  cookie: '',
-  withCredentials: true,
-  quality: 'exhigh',
-  theme: 'auto',
-};
+const defaults: Settings = { quality: defaultQuality, theme: 'auto', motion: 'full' };
 
 let current: Settings = { ...defaults, ...readJSON<Partial<Settings>>(KEY, {}) };
 const listeners = new Set<() => void>();
@@ -39,5 +30,13 @@ export function updateSettings(patch: Partial<Settings>) {
 
 export function subscribeSettings(fn: () => void) {
   listeners.add(fn);
-  return () => listeners.delete(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+/** 是否该播放动画：用户设置 + 系统偏好 */
+export function motionEnabled(): boolean {
+  if (current.motion === 'reduced') return false;
+  return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }

@@ -1,78 +1,57 @@
-import { Fragment, useState } from 'react';
-import { api, type Track } from '../api';
-import { Cover } from '../components/Cover';
+import { Fragment } from 'react';
+import { music, type Track } from '../api';
+import { DetailHeader } from '../components/DetailHeader';
 import { Icon } from '../components/Icon';
 import { ErrorState, Loading } from '../components/States';
 import { TrackList } from '../components/TrackList';
-import { formatCount, formatDate, formatTime } from '../lib/format';
+import { formatDate, formatTime } from '../lib/format';
+import { getPreview } from '../lib/motion';
 import { href } from '../lib/router';
 import { useAsync } from '../lib/useAsync';
 import { playList } from '../player/player';
 
 function totalTime(tracks: Track[]) {
-  const ms = tracks.reduce((s, t) => s + t.duration, 0);
+  const ms = tracks.reduce((s, t) => s + t.durationMs, 0);
   const min = Math.round(ms / 60000);
   return min >= 60 ? `${Math.floor(min / 60)} 小时 ${min % 60} 分` : formatTime(ms);
 }
 
-function Description({ text }: { text?: string }) {
-  const [open, setOpen] = useState(false);
-  if (!text) return null;
-  const long = text.length > 120;
+export function PlayActions({ tracks }: { tracks: Track[] }) {
   return (
     <>
-      <p className={`desc ${long && !open ? 'clamped' : ''}`}>{text}</p>
-      {long && (
-        <button className="desc-toggle" onClick={() => setOpen(!open)}>
-          {open ? '收起' : '展开全文'}
-        </button>
-      )}
+      <button className="btn solid" onClick={() => playList(tracks)} disabled={!tracks.length}>
+        <Icon name="play" /> 放上唱机
+      </button>
+      <button className="btn" onClick={() => playList([...tracks].sort(() => Math.random() - 0.5))} disabled={!tracks.length}>
+        <Icon name="shuffle" /> 随机
+      </button>
     </>
   );
 }
 
-function Shuffle({ tracks }: { tracks: Track[] }) {
-  return (
-    <button
-      className="btn"
-      onClick={() => {
-        const order = [...tracks].sort(() => Math.random() - 0.5);
-        playList(order);
-      }}
-    >
-      <Icon name="shuffle" /> 随机播放
-    </button>
-  );
-}
+/** 歌单和榜单结构一样，只是取数接口不同 */
+export function PlaylistView({ id, source }: { id: string; source: 'playlist' | 'toplist' }) {
+  const heroKey = `${source}:${id}`;
+  const { data: p, error, loading, reload } = useAsync(() => (source === 'toplist' ? music.toplist(id) : music.playlist(id)), [id, source]);
+  const preview = getPreview(heroKey);
+  const kind = source === 'toplist' ? '榜单' : '歌单';
 
-export function PlaylistView({ id }: { id: string }) {
-  const { data: p, error, loading, reload } = useAsync(() => api().getPlaylist(id), [id]);
   return (
     <div className="page">
+      {loading && preview && <DetailHeader heroKey={heroKey} kind={kind} title={preview.title} coverUrl={preview.coverUrl} pending />}
       {loading && <Loading />}
       {error && <ErrorState error={error} onRetry={reload} />}
       {p && (
         <>
-          <header className="detail-head">
-            <Cover src={p.cover} alt={p.name} size={600} />
-            <div>
-              <div className="kicker">歌单{p.tags?.length ? ` · ${p.tags.join(' / ')}` : ''}</div>
-              <h1>{p.name}</h1>
-              {p.creator && <div className="byline">编 / {p.creator.name}</div>}
-              <Description text={p.description} />
-              <div className="meta-row mono">
-                <span>{p.tracks.length} 首</span>
-                <span>{totalTime(p.tracks)}</span>
-                {!!p.playCount && <span>{formatCount(p.playCount)} 次播放</span>}
-              </div>
-              <div className="actions">
-                <button className="btn solid" onClick={() => playList(p.tracks)}>
-                  <Icon name="play" /> 播放全部
-                </button>
-                <Shuffle tracks={p.tracks} />
-              </div>
-            </div>
-          </header>
+          <DetailHeader
+            heroKey={heroKey}
+            kind={kind}
+            title={p.name}
+            coverUrl={p.coverUrl ?? preview?.coverUrl}
+            description={p.description}
+            meta={[`${p.tracks.length} 首`, p.tracks.length > 0 && totalTime(p.tracks)]}
+            actions={<PlayActions tracks={p.tracks} />}
+          />
           <TrackList tracks={p.tracks} />
         </>
       )}
@@ -81,43 +60,60 @@ export function PlaylistView({ id }: { id: string }) {
 }
 
 export function AlbumView({ id }: { id: string }) {
-  const { data: a, error, loading, reload } = useAsync(() => api().getAlbum(id), [id]);
+  const heroKey = `album:${id}`;
+  const { data: a, error, loading, reload } = useAsync(() => music.album(id), [id]);
+  const preview = getPreview(heroKey);
   return (
     <div className="page">
+      {loading && preview && <DetailHeader heroKey={heroKey} kind="专辑" title={preview.title} coverUrl={preview.coverUrl} pending />}
       {loading && <Loading />}
       {error && <ErrorState error={error} onRetry={reload} />}
       {a && (
         <>
-          <header className="detail-head">
-            <Cover src={a.cover} alt={a.name} size={600} />
-            <div>
-              <div className="kicker">
-                专辑{a.publishTime ? ` · ${formatDate(a.publishTime)}` : ''}
-                {a.company ? ` · ${a.company}` : ''}
-              </div>
-              <h1>{a.name}</h1>
-              <div className="byline">
-                {a.artists.map((r, i) => (
-                  <Fragment key={`${r.id}-${i}`}>
-                    {i > 0 && ' / '}
-                    <a href={href.artist(r.id)}>{r.name}</a>
-                  </Fragment>
-                ))}
-              </div>
-              <Description text={a.description} />
-              <div className="meta-row mono">
-                <span>{a.tracks.length} 首</span>
-                <span>{totalTime(a.tracks)}</span>
-              </div>
-              <div className="actions">
-                <button className="btn solid" onClick={() => playList(a.tracks)}>
-                  <Icon name="play" /> 放上唱机
-                </button>
-                <Shuffle tracks={a.tracks} />
-              </div>
-            </div>
-          </header>
+          <DetailHeader
+            heroKey={heroKey}
+            kind={`专辑${a.publishTime ? ` · ${formatDate(a.publishTime)}` : ''}`}
+            title={a.name}
+            coverUrl={a.coverUrl ?? preview?.coverUrl}
+            byline={a.artists.map((r, i) => (
+              <Fragment key={`${r.id}-${i}`}>
+                {i > 0 && ' / '}
+                {r.id ? <a href={href.artist(r.id)}>{r.name}</a> : r.name}
+              </Fragment>
+            ))}
+            description={a.description}
+            meta={[`${a.tracks.length} 首`, a.tracks.length > 0 && totalTime(a.tracks)]}
+            actions={<PlayActions tracks={a.tracks} />}
+          />
           <TrackList tracks={a.tracks} sides showAlbum={false} />
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ArtistView({ id }: { id: string }) {
+  const heroKey = `artist:${id}`;
+  const { data: a, error, loading, reload } = useAsync(() => music.artist(id), [id]);
+  const preview = getPreview(heroKey);
+  return (
+    <div className="page">
+      {loading && preview && <DetailHeader heroKey={heroKey} kind="艺人" title={preview.title} coverUrl={preview.coverUrl} round pending />}
+      {loading && <Loading />}
+      {error && <ErrorState error={error} onRetry={reload} />}
+      {a && (
+        <>
+          <DetailHeader
+            heroKey={heroKey}
+            kind="艺人"
+            title={a.name}
+            coverUrl={a.coverUrl ?? preview?.coverUrl}
+            description={a.briefDesc}
+            meta={[`热门 ${a.topTracks.length} 首`]}
+            actions={<PlayActions tracks={a.topTracks} />}
+            round
+          />
+          <TrackList tracks={a.topTracks} />
         </>
       )}
     </div>
