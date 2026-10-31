@@ -8,7 +8,7 @@ import { Vinyl } from '../components/Vinyl';
 import { epigraph as epigraphCfg, homeLayout, site, type BlockLayout } from '../config/site';
 import { resolveDiscover } from '../lib/discover';
 import { cachedEpigraph, todaysEpigraph, type Epigraph } from '../lib/epigraph';
-import { dayKey, longDate } from '../lib/format';
+import { dayKey, formatTime, longDate } from '../lib/format';
 import { markHero, setPreview } from '../lib/motion';
 import { tintVars, useTint } from '../lib/palette';
 import { href, navigate } from '../lib/router';
@@ -180,8 +180,8 @@ function tokens(text: string) {
 }
 
 /**
- * 刊头的「今日卷首语」：从封面故事歌单里摘一句歌词，逐字晕染浮现。
- * 点出处从这句开始播放。同一天内固定，第二天自动换。
+ * 刊头：左边一个大数字，是今日卷首语那句歌词在歌里出现的时刻（At 0:32）；
+ * 旁边是这句歌词，带出处。点数字或出处都从这一刻开始播放。同一天固定，第二天自动换。
  */
 function EpigraphHead({ source, ready }: { source?: DiscoverItem; ready: boolean }) {
   // undefined = 还在挑；null = 没挑到，用兜底句
@@ -198,43 +198,65 @@ function EpigraphHead({ source, ready }: { source?: DiscoverItem; ready: boolean
     };
   }, [ready, source?.targetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const text = ep === undefined ? '' : (ep?.text ?? epigraphCfg.fallback);
+  const loading = ep === undefined;
+  const now = new Date();
+  // 大数字：歌词时刻；没时间轴或没挑到句子时退回今天的日期
+  const [mark, figure] =
+    ep && ep.timeMs != null ? ['At', formatTime(ep.timeMs)] : ['On', `${now.getMonth() + 1}.${now.getDate()}`];
+  const text = loading ? '' : (ep?.text ?? epigraphCfg.fallback);
+  const play = () => ep && playTrack(ep.track, ep.timeMs != null ? Math.max(0, ep.timeMs - epigraphCfg.playLeadMs) : undefined);
   let c = 0;
+
   return (
-    <figure className={`epigraph ${ep === undefined ? 'is-loading' : ''}`}>
-      <div className="epigraph-label mono">{epigraphCfg.label}</div>
-      <blockquote className="epigraph-text" aria-label={text} lang={/\p{Script=Han}/u.test(text) ? undefined : 'en'}>
-        {text && (
-          <span aria-hidden="true">
-            {tokens(text).map((t, i) =>
-              /^\s+$/.test(t) ? (
-                t
-              ) : (
-                <span key={i} className="ch" style={{ '--c': c++ } as React.CSSProperties}>
-                  {t}
-                </span>
-              ),
-            )}
+    <>
+      <button
+        className={`mast-figure ${loading ? 'is-loading' : ''}`}
+        onClick={play}
+        disabled={!ep}
+        aria-label={ep ? `从 ${figure} 开始播放《${ep.track.name}》` : undefined}
+        title={ep ? '从这一刻开始听' : undefined}
+      >
+        <span className="mast-mark mono">{mark}</span>
+        {/* 挑句子期间用一个看不见的占位撑住大小，句子出来时版面不跳 */}
+        {loading ? (
+          <span className="mast-digits">0:00</span>
+        ) : (
+          <span className="mast-digits" key={figure}>
+            {Array.from(figure).map((d, i) => (
+              <span key={i} className="mast-d" style={{ '--c': i } as React.CSSProperties}>
+                {d}
+              </span>
+            ))}
           </span>
         )}
-      </blockquote>
-      {ep?.translation && <p className="epigraph-tr">{ep.translation}</p>}
-      {ep && (
-        <button
-          className="epigraph-src"
-          style={{ '--c': c } as React.CSSProperties}
-          onClick={() => playTrack(ep.track, ep.timeMs != null ? Math.max(0, ep.timeMs - epigraphCfg.playLeadMs) : undefined)}
-          title="从这句开始听"
-        >
-          <span className="epigraph-play">
-            <Icon name="play" />
-          </span>
-          <span>
-            《{ep.track.name}》<span className="faint"> · {ep.track.artists.map((a) => a.name).join(' / ')}</span>
-          </span>
-        </button>
-      )}
-    </figure>
+      </button>
+
+      <figure className={`epigraph ${loading ? 'is-loading' : ''}`}>
+        <div className="epigraph-label mono">{epigraphCfg.label}</div>
+        <blockquote className="epigraph-text" aria-label={text} lang={/\p{Script=Han}/u.test(text) ? undefined : 'en'}>
+          {text && (
+            <span aria-hidden="true">
+              {tokens(text).map((t, i) =>
+                /^\s+$/.test(t) ? (
+                  t
+                ) : (
+                  <span key={i} className="ch" style={{ '--c': c++ } as React.CSSProperties}>
+                    {t}
+                  </span>
+                ),
+              )}
+            </span>
+          )}
+        </blockquote>
+        {ep?.translation && <p className="epigraph-tr">{ep.translation}</p>}
+        {ep && (
+          <button className="epigraph-src" style={{ '--c': c } as React.CSSProperties} onClick={play}>
+            《{ep.track.name}》<span className="faint">{ep.track.artists.map((a) => a.name).join(' / ')}</span>
+            <Icon name="arrow" />
+          </button>
+        )}
+      </figure>
+    </>
   );
 }
 

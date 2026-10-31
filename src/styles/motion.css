@@ -151,20 +151,41 @@ html:not([data-vt]) .player {
   }
 }
 
-/* 卷首语：一个字一个字像墨水晕开一样浮现，出处随后淡入 */
+/* 刊头：大数字一位一位升起，竖线从上往下画出，引文逐字晕染浮现，出处最后淡入 */
+.mast-d {
+  display: inline-block;
+  animation: digit-rise 0.8s var(--ease-spring) both;
+  animation-delay: calc(80ms + var(--c) * 70ms);
+}
+.epigraph::before {
+  animation: rule-grow 0.7s var(--ease-out) 0.2s both;
+}
+.epigraph-label {
+  animation: fade-in 0.6s var(--ease-soft) 0.3s both;
+}
 .epigraph-text .ch {
   display: inline-block;
   animation: ink-in 0.9s var(--ease-out) both;
-  animation-delay: calc(160ms + min(var(--c), 30) * 34ms);
+  animation-delay: calc(380ms + min(var(--c), 30) * 30ms);
 }
-.epigraph-text::before,
-.epigraph-text::after,
 .epigraph-tr {
-  animation: fade-in 0.8s var(--ease-soft) 0.12s both;
+  animation: fade-in 0.8s var(--ease-soft) 0.6s both;
 }
 .epigraph-src {
   animation: reveal 0.7s var(--ease-out) both;
-  animation-delay: calc(420ms + min(var(--c), 30) * 34ms);
+  animation-delay: calc(560ms + min(var(--c), 30) * 30ms);
+}
+@keyframes digit-rise {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(0.3em);
+  }
+}
+@keyframes rule-grow {
+  from {
+    transform: scaleY(0);
+  }
 }
 @keyframes ink-in {
   from {

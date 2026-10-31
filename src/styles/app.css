@@ -622,102 +622,107 @@ img {
 
 /* ============ 首页 ============ */
 .masthead {
-  display: flex;
-  align-items: flex-end;
-  padding-top: 8px;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 40px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
 }
+.mast-figure {
+  display: flex;
+  align-items: flex-start;
+  font-family: var(--display);
+  font-size: clamp(64px, 10vw, 136px);
+  font-weight: 600;
+  line-height: 0.82;
+  letter-spacing: -0.06em;
+  font-feature-settings: 'tnum';
+  color: var(--ink);
+  white-space: nowrap;
+  transition: color 0.35s var(--ease-soft);
+}
+.mast-mark {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  margin-right: 8px;
+  color: var(--accent);
+}
+.mast-figure:not(:disabled):hover {
+  color: var(--accent);
+}
+.mast-figure.is-loading .mast-digits {
+  visibility: hidden;
+}
+/* 卷首语：大数字右边的一段引文，左侧一道强调色竖线 */
 .epigraph {
-  flex: 1;
+  position: relative;
+  align-self: end;
   min-width: 0;
-  max-width: 860px;
+  max-width: 560px;
   margin: 0;
+  padding: 2px 0 2px 22px;
+}
+.epigraph::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: top;
 }
 .epigraph-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  font-size: 12px;
+  margin-bottom: 8px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   color: var(--accent);
 }
-.epigraph-label::before {
-  content: '';
-  width: 28px;
-  height: 1px;
-  background: currentColor;
-}
 .epigraph-text {
   margin: 0;
-  font-family: var(--display);
-  font-size: clamp(30px, 4.3vw, 60px);
-  font-weight: 700;
-  line-height: 1.16;
-  letter-spacing: -0.02em;
+  font-size: clamp(20px, 2.1vw, 28px);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
-.epigraph-text::before,
-.epigraph-text::after {
-  color: var(--accent);
-  font-weight: 500;
-}
-/* 挑句子期间先占住一行，句子出来时下面的内容少跳一点 */
 .epigraph.is-loading .epigraph-text {
-  min-height: 1.16em;
-}
-.epigraph:not(.is-loading) .epigraph-text::before {
-  content: '「';
-}
-.epigraph:not(.is-loading) .epigraph-text::after {
-  content: '」';
-}
-/* 外文句子用弯引号 */
-.epigraph-text[lang='en']::before {
-  content: '“' !important;
-}
-.epigraph-text[lang='en']::after {
-  content: '”' !important;
+  min-height: 1.3em;
 }
 .epigraph-tr {
-  margin-top: 10px;
-  font-size: 17px;
+  margin-top: 4px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .epigraph-src {
-  margin-top: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
+  display: block;
+  margin-top: 12px;
+  text-align: left;
+  line-height: 1.5;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--ink-2);
   transition: color 0.2s;
 }
-.epigraph-play {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.35s var(--ease-spring);
+.epigraph-src .faint {
+  margin-left: 4px;
 }
-.epigraph-play svg {
-  width: 13px;
-  height: 13px;
+.epigraph-src svg {
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  vertical-align: -2px;
+  transition: transform 0.3s var(--ease-spring);
 }
 .epigraph-src:hover {
   color: var(--accent);
 }
-.epigraph-src:hover .epigraph-play {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-ink);
-  transform: scale(1.08);
+.epigraph-src:hover svg {
+  transform: translateX(3px);
 }
 .masthead-meta {
   flex: none;
@@ -2142,12 +2147,18 @@ img {
     padding-top: 18px;
   }
   .masthead {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 18px;
   }
   .masthead-meta {
     align-items: flex-start;
     text-align: left;
+  }
+  .epigraph {
+    padding-left: 16px;
+  }
+  .epigraph-text {
+    font-size: 18px;
   }
   .feature,
   .detail-head {
