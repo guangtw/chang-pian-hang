@@ -1,17 +1,19 @@
+import { useEffect, useState } from 'react';
 import { music, type DiscoverBlock, type DiscoverItem } from '../api';
 import { Card, DiscoverCard, discoverActivate } from '../components/Cards';
 import { Cover } from '../components/Cover';
 import { Icon } from '../components/Icon';
 import { ErrorState, Loading } from '../components/States';
 import { Vinyl } from '../components/Vinyl';
-import { homeLayout, site, type BlockLayout } from '../config/site';
+import { epigraph as epigraphCfg, homeLayout, site, type BlockLayout } from '../config/site';
 import { resolveDiscover } from '../lib/discover';
-import { issueDate, issueNumber } from '../lib/format';
+import { cachedEpigraph, todaysEpigraph, type Epigraph } from '../lib/epigraph';
+import { dayKey, longDate } from '../lib/format';
 import { markHero, setPreview } from '../lib/motion';
 import { tintVars, useTint } from '../lib/palette';
 import { href, navigate } from '../lib/router';
 import { useAsync } from '../lib/useAsync';
-import { playList } from '../player/player';
+import { playList, playTrack } from '../player/player';
 
 function layoutOf(block: DiscoverBlock): BlockLayout {
   const byId = homeLayout.byBlockId[block.id];
@@ -172,6 +174,70 @@ function Block({ block, no, skip }: { block: DiscoverBlock; no: number; skip?: s
   );
 }
 
+/** 把一句话拆成逐个浮现的小块：中文按字，英文按词（避免单词被拆到两行） */
+function tokens(text: string) {
+  return text.match(/[A-Za-z0-9'’\-]+|\s+|./gu) ?? [];
+}
+
+/**
+ * 刊头的「今日卷首语」：从封面故事歌单里摘一句歌词，逐字晕染浮现。
+ * 点出处从这句开始播放。同一天内固定，第二天自动换。
+ */
+function EpigraphHead({ source, ready }: { source?: DiscoverItem; ready: boolean }) {
+  // undefined = 还在挑；null = 没挑到，用兜底句
+  const [ep, setEp] = useState<Epigraph | null | undefined>(() => cachedEpigraph() ?? undefined);
+  useEffect(() => {
+    if (ep !== undefined || !ready) return;
+    let alive = true;
+    todaysEpigraph(source).then(
+      (e) => alive && setEp(e),
+      () => alive && setEp(null),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [ready, source?.targetId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const text = ep === undefined ? '' : (ep?.text ?? epigraphCfg.fallback);
+  let c = 0;
+  return (
+    <figure className={`epigraph ${ep === undefined ? 'is-loading' : ''}`}>
+      <div className="epigraph-label mono">{epigraphCfg.label}</div>
+      <blockquote className="epigraph-text" aria-label={text} lang={/\p{Script=Han}/u.test(text) ? undefined : 'en'}>
+        {text && (
+          <span aria-hidden="true">
+            {tokens(text).map((t, i) =>
+              /^\s+$/.test(t) ? (
+                t
+              ) : (
+                <span key={i} className="ch" style={{ '--c': c++ } as React.CSSProperties}>
+                  {t}
+                </span>
+              ),
+            )}
+          </span>
+        )}
+      </blockquote>
+      {ep?.translation && <p className="epigraph-tr">{ep.translation}</p>}
+      {ep && (
+        <button
+          className="epigraph-src"
+          style={{ '--c': c } as React.CSSProperties}
+          onClick={() => playTrack(ep.track, ep.timeMs != null ? Math.max(0, ep.timeMs - epigraphCfg.playLeadMs) : undefined)}
+          title="从这句开始听"
+        >
+          <span className="epigraph-play">
+            <Icon name="play" />
+          </span>
+          <span>
+            《{ep.track.name}》<span className="faint"> · {ep.track.artists.map((a) => a.name).join(' / ')}</span>
+          </span>
+        </button>
+      )}
+    </figure>
+  );
+}
+
 export function Home() {
   const { data, error, loading, reload } = useAsync(() => music.discoverHome(), [], 'discover');
   const feature = data && pickFeature(data.blocks);
@@ -180,13 +246,9 @@ export function Home() {
   return (
     <div className="page home">
       <header className="masthead reveal">
-        <div className="issue-no" aria-label={`第 ${issueNumber()} 期`}>
-          <span className="mono">No.</span>
-          {issueNumber()}
-        </div>
+        <EpigraphHead source={feature} ready={!loading} />
         <div className="masthead-meta">
-          <span className="mono">{issueDate()}</span>
-          <span className="mono faint">{site.issueCadence}</span>
+          <span className="mono">{longDate()}</span>
           {kw && (
             <a className="masthead-ask" href={href.search(kw)}>
               今天想听「{kw}」吗 <Icon name="arrow" />
@@ -212,7 +274,7 @@ export function Home() {
           )}
           <footer className="colophon mono">
             <span>
-              {site.name} · No.{issueNumber()}
+              {site.name} · {dayKey().replace(/-/g, '.')}
             </span>
             <span>{site.footerNote}</span>
           </footer>

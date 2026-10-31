@@ -119,7 +119,10 @@ function expiryOf(src: { expiresAt?: string; ttlSeconds?: number }) {
 const expiringSoon = () => !!loaded && Date.now() > loaded.expiresAt - api.playUrlRenewLeadSeconds * 1000;
 
 /** 取播放地址并装进 <audio>；resumeAt 用于续签后从原位置继续 */
-async function resolveAndPlay(index: number, opts: { autoplay?: boolean; resumeAt?: number; skipped?: number } = {}) {
+async function resolveAndPlay(
+  index: number,
+  opts: { autoplay?: boolean; resumeAt?: number; startAt?: number; skipped?: number } = {},
+) {
   const { queue } = get();
   const track = queue[index];
   if (!track) return;
@@ -141,6 +144,7 @@ async function resolveAndPlay(index: number, opts: { autoplay?: boolean; resumeA
     loaded = { id: track.id, expiresAt: expiryOf(src) };
     audio.src = src.url;
     if (opts.resumeAt) audio.currentTime = opts.resumeAt / 1000;
+    else if (opts.startAt) audio.currentTime = opts.startAt / 1000;
     set({ preview: src.preview });
     if (fresh && src.preview) toast(src.restrictionReason || '这首只能试听片段。');
     if (opts.autoplay !== false) await audio.play().catch(() => set({ playing: false }));
@@ -150,7 +154,7 @@ async function resolveAndPlay(index: number, opts: { autoplay?: boolean; resumeA
     const skipped = (opts.skipped ?? 0) + 1;
     if (fresh && skipped < queue.length) {
       toast(`《${track.name}》暂时放不了：${(e as Error).message}`);
-      return resolveAndPlay(nextIndex(index), { ...opts, skipped });
+      return resolveAndPlay(nextIndex(index), { ...opts, startAt: undefined, skipped });
     }
     set({ loading: false, playing: false });
     toast((e as Error).message || '获取播放地址失败。');
@@ -183,14 +187,21 @@ export function playList(tracks: Track[], start = 0) {
   void resolveAndPlay(start);
 }
 
-export function playTrack(track: Track) {
+/** 播放一首歌；startAt（毫秒）给了就从那里开始，例如首页卷首语「从这句开始听」 */
+export function playTrack(track: Track, startAt?: number) {
   const { queue, index } = get();
   const existing = queue.findIndex((t) => t.id === track.id);
-  if (existing >= 0) return jumpTo(existing);
+  // 正在放的就是这首：直接跳过去，不重新取地址
+  if (existing >= 0 && existing === index && loaded?.id === track.id && startAt != null) {
+    seek(startAt);
+    if (!get().playing) toggle();
+    return;
+  }
+  if (existing >= 0) return jumpTo(existing, startAt);
   const q = [...queue];
   q.splice(index + 1, 0, track);
   set({ queue: q });
-  jumpTo(index + 1);
+  jumpTo(index + 1, startAt);
 }
 
 /** 只知道 id 时（例如首页推荐里的单曲）先取详情再播 */
@@ -212,9 +223,9 @@ export function addNext(track: Track) {
   toast(`《${track.name}》会在下一首播放。`);
 }
 
-export function jumpTo(i: number) {
+export function jumpTo(i: number, startAt?: number) {
   if (get().index >= 0) history.push(get().index);
-  void resolveAndPlay(i);
+  void resolveAndPlay(i, { startAt });
 }
 
 export function toggle() {

@@ -14,11 +14,6 @@ export const site = {
   name: (env.VITE_SITE_NAME as string) || `${brandBig}${brandSmall}`,
   /** 侧栏站标分两行：大字一行、小字一行 */
   brand: { big: brandBig, small: brandSmall },
-  /** 刊头小字。{n} 会被替换为期号 */
-  issueLabel: '第 {n} 期',
-  /** 期号起算点：从这一刻起每满一周加一期。选的是周五零点（北京时间），和下面的「每周五出刊」对上 */
-  issueEpoch: '2024-01-05T00:00:00+08:00',
-  issueCadence: '每周五出刊',
   footerNote: '数据由站内 BFF 提供',
 } as const;
 
@@ -136,6 +131,25 @@ export const searchTabs = [
  * 榜单封面替换：上游的榜单封面是统一模板图，这里换成唱片行风格的生成封面。
  * palette 是 [底色, 强调色]，按榜单 id 固定选一组。
  */
+/**
+ * 首页刊头的「今日卷首语」：每天从封面故事歌单里挑一首歌，摘一句歌词放在刊头。
+ * 同一天内固定（缓存在本机），第二天自动换。
+ */
+export const epigraph = {
+  label: '今日卷首语',
+  /** 当天没摘到句子（后端没推荐歌单、全是纯音乐……）时刊头显示这句 */
+  fallback: '今天，放一张唱片吧。',
+  /** 摘句长度（按字符数），太短没味道，太长排不下 */
+  minChars: 5,
+  maxChars: 22,
+  /** 最多试几首歌（纯音乐、没歌词的会跳过） */
+  maxTracks: 5,
+  /** 「从这句开始听」时提前多少毫秒起播，让这句完整落进耳朵 */
+  playLeadMs: 800,
+  /** 署名行（作词、作曲……）不选 */
+  skip: /作词|作曲|编曲|制作|混音|母带|监制|和声|吉他|贝斯|鼓|录音|出品|发行|统筹|策划|OP|SP|produc|lyrics|compos|arrang|[:：]/i,
+};
+
 export const covers = {
   replaceToplist: (env.VITE_REPLACE_TOPLIST_COVERS as string) !== 'off',
   palette: [

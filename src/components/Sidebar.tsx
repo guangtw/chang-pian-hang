@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { nav, site } from '../config/site';
 import { authStore, displayName } from '../lib/account';
-import { issueLabel } from '../lib/format';
+import { shortDate } from '../lib/format';
 import { href, useRoute } from '../lib/router';
 import { useStore } from '../lib/store';
 import { uiStore } from '../player/ui';
@@ -41,7 +41,7 @@ export function Sidebar() {
           <span className="brand-small">{site.brand.small}</span>
         </span>
       </a>
-      <div className="brand-sub mono">{issueLabel()}</div>
+      <div className="brand-sub mono">{shortDate()}</div>
 
       <div className="nav" ref={navRef}>
         <span className="nav-pill" ref={pillRef} aria-hidden="true" />

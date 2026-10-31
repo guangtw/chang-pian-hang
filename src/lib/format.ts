@@ -1,4 +1,3 @@
-import { site } from '../config/site';
 
 export function formatTime(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) ms = 0;
@@ -23,17 +22,20 @@ export function formatDate(ts?: number): string {
 
 const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
 
-/** 刊头日期：2026 年 10 月 30 日 · 星期五 */
-export function issueDate(d = new Date()): string {
+/** 长日期：2026 年 10 月 30 日 · 星期五 */
+export function longDate(d = new Date()): string {
   return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${WEEK[d.getDay()]}`;
 }
 
-/** 刊号：从 site.issueEpoch 起算，每周一期 */
-export function issueNumber(d = new Date()): number {
-  return Math.max(1, Math.floor((d.getTime() - Date.parse(site.issueEpoch)) / (7 * 86400000)) + 1);
+/** 侧栏、页脚用的短日期：10.31 · 周六 */
+export function shortDate(d = new Date()): string {
+  return `${d.getMonth() + 1}.${d.getDate()} · 周${WEEK[d.getDay()]}`;
 }
 
-export const issueLabel = () => site.issueLabel.replace('{n}', String(issueNumber()));
+/** 本地日期键：2026-10-31（按天缓存用） */
+export function dayKey(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 /** 唱片的 A/B 面编号：前一半是 A 面，后一半是 B 面 */
 export function sideLabel(i: number, total: number): string {

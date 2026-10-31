@@ -624,27 +624,103 @@ img {
 .masthead {
   display: flex;
   align-items: flex-end;
+  padding-top: 8px;
   justify-content: space-between;
   gap: 24px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
 }
-.issue-no {
-  font-family: var(--display);
-  font-size: clamp(64px, 10vw, 136px);
-  font-weight: 600;
-  line-height: 0.82;
-  letter-spacing: -0.06em;
-  font-feature-settings: 'tnum';
+.epigraph {
+  flex: 1;
+  min-width: 0;
+  max-width: 860px;
+  margin: 0;
 }
-.issue-no .mono {
-  font-size: 14px;
-  letter-spacing: 0;
-  vertical-align: top;
-  margin-right: 6px;
+.epigraph-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  letter-spacing: 0.24em;
   color: var(--accent);
 }
+.epigraph-label::before {
+  content: '';
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+}
+.epigraph-text {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(30px, 4.3vw, 60px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.epigraph-text::before,
+.epigraph-text::after {
+  color: var(--accent);
+  font-weight: 500;
+}
+/* 挑句子期间先占住一行，句子出来时下面的内容少跳一点 */
+.epigraph.is-loading .epigraph-text {
+  min-height: 1.16em;
+}
+.epigraph:not(.is-loading) .epigraph-text::before {
+  content: '「';
+}
+.epigraph:not(.is-loading) .epigraph-text::after {
+  content: '」';
+}
+/* 外文句子用弯引号 */
+.epigraph-text[lang='en']::before {
+  content: '“' !important;
+}
+.epigraph-text[lang='en']::after {
+  content: '”' !important;
+}
+.epigraph-tr {
+  margin-top: 10px;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.epigraph-src {
+  margin-top: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  transition: color 0.2s;
+}
+.epigraph-play {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.35s var(--ease-spring);
+}
+.epigraph-play svg {
+  width: 13px;
+  height: 13px;
+}
+.epigraph-src:hover {
+  color: var(--accent);
+}
+.epigraph-src:hover .epigraph-play {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-ink);
+  transform: scale(1.08);
+}
 .masthead-meta {
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: flex-end;

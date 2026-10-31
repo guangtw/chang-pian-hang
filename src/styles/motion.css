@@ -151,6 +151,29 @@ html:not([data-vt]) .player {
   }
 }
 
+/* 卷首语：一个字一个字像墨水晕开一样浮现，出处随后淡入 */
+.epigraph-text .ch {
+  display: inline-block;
+  animation: ink-in 0.9s var(--ease-out) both;
+  animation-delay: calc(160ms + min(var(--c), 30) * 34ms);
+}
+.epigraph-text::before,
+.epigraph-text::after,
+.epigraph-tr {
+  animation: fade-in 0.8s var(--ease-soft) 0.12s both;
+}
+.epigraph-src {
+  animation: reveal 0.7s var(--ease-out) both;
+  animation-delay: calc(420ms + min(var(--c), 30) * 34ms);
+}
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(0.2em);
+  }
+}
+
 /* 详情页 / 封面故事：唱片从封套里滑出来，带一点回弹 */
 .detail-vinyl,
 .feature-vinyl {
