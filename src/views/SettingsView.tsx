@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { music } from '../api';
 import { api, qualities } from '../config/site';
 import { authStore, displayName, logout } from '../lib/account';
+import { transition } from '../lib/motion';
 import { getSettings, subscribeSettings, updateSettings, type Settings, type Theme } from '../lib/settings';
 import { useStore } from '../lib/store';
 import { useAsync } from '../lib/useAsync';
@@ -55,7 +56,7 @@ export function SettingsView() {
 
         <div className="field reveal" style={{ '--i': 1 } as React.CSSProperties}>
           <span className="label">外观</span>
-          <Seg value={s.theme} options={THEMES} onChange={(theme) => updateSettings({ theme })} label="外观" />
+          <Seg value={s.theme} options={THEMES} onChange={(theme) => transition(() => updateSettings({ theme }), 'theme')} label="外观" />
         </div>
 
         <div className="field reveal" style={{ '--i': 2 } as React.CSSProperties}>

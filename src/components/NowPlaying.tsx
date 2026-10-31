@@ -42,15 +42,22 @@ export function NowPlaying() {
     if (!open || !playing) setActive(unsynced ? -1 : activeLineIndex(lines, position + LEAD_MS));
   }, [open, playing, position, lines, unsynced]);
 
-  // 当前行滚到视口 40% 处；用户刚手动滚过的话先不抢
+  // 当前行滚到歌词框 42% 处（遮罩渐隐区之下、视觉中心略偏上）；用户刚手动滚过的话先不抢。
+  // 刚打开面板或刚换歌时直接定位，不从顶部滚下来
+  const placedFor = useRef<string | null>(null);
   useEffect(() => {
     const box = listRef.current;
+    if (!open) placedFor.current = null;
     if (!open || !box || active < 0 || Date.now() - userScrolledAt.current < 2500) return;
     const el = box.children[active] as HTMLElement | undefined;
     if (!el) return;
+    const to = el.offsetTop - box.clientHeight * 0.42 + el.offsetHeight / 2;
     cancelTween.current();
-    cancelTween.current = tweenScroll(box, el.offsetTop - box.clientHeight * 0.4 + el.clientHeight / 2, 700);
-  }, [active, open]);
+    if (placedFor.current !== lyric?.trackId) {
+      placedFor.current = lyric?.trackId ?? null;
+      box.scrollTop = to;
+    } else cancelTween.current = tweenScroll(box, to, 700);
+  }, [active, open, lyric]);
 
   useEffect(() => {
     if (!open) return;

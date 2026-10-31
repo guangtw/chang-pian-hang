@@ -26,6 +26,14 @@
   animation: none;
 }
 
+/* 换主题：整页交叉淡化。不这样做的话背景、卡片、文字各自的过渡时长不同，会一块一块地变色 */
+html[data-vt='theme']::view-transition-old(root) {
+  animation: vt-fade-out 0.45s var(--ease-soft) both;
+}
+html[data-vt='theme']::view-transition-new(root) {
+  animation: fade-in 0.45s var(--ease-soft) both;
+}
+
 /* 换页：旧页轻轻上浮淡出，新页从下方浮上来 */
 html[data-vt='page']::view-transition-old(page) {
   animation: vt-page-out 0.22s var(--ease-soft) both;
@@ -62,15 +70,21 @@ html[data-vt='np-close']::view-transition-new(np-panel) {
   animation: none;
   opacity: 0;
 }
-/* 小唱片是播放台上的独立一层，要压在播放台之上，否则过渡时会被盖住 */
+/* 过渡层的叠放顺序要和真实页面一致：侧栏 < 唱机面板 < 播放台 < 飞行中的小唱片。
+   顺序不一致的话，过渡一结束，被错误压在上面的东西会突然消失（例如侧栏浮在唱机面板上）。 */
+::view-transition-group(side) {
+  z-index: 20;
+}
+::view-transition-group(np-panel) {
+  z-index: 30;
+}
+::view-transition-group(deck) {
+  z-index: 40;
+}
 ::view-transition-group(np-disc) {
   animation-duration: 0.7s;
   animation-timing-function: cubic-bezier(0.3, 1.05, 0.3, 1);
-  z-index: 40;
-}
-::view-transition-group(deck),
-::view-transition-group(side) {
-  z-index: 30;
+  z-index: 50;
 }
 
 /* 过渡进行中关掉面板自己的 CSS 过渡，避免两套动画打架 */
@@ -85,7 +99,17 @@ html[data-vt] .player {
   backdrop-filter: none;
   background: var(--glass-solid);
 }
+/* 过渡结束后从实色慢慢回到半透明毛玻璃，不要一下子跳回去。
+   只在「没有 data-vt」时带过渡，进入过渡时的切换仍是瞬间的，快照拍到的就是实色。 */
+html:not([data-vt]) .player {
+  transition: background-color 0.35s var(--ease-soft);
+}
 
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
 @keyframes vt-page-out {
   to {
     opacity: 0;
@@ -114,6 +138,11 @@ html[data-vt] .player {
 .reveal {
   animation: reveal 0.7s var(--ease-out) both;
   animation-delay: calc(min(var(--i, 0), 14) * 42ms);
+}
+/* 返回时封面要飞回的那张卡片不做入场：它的位置由视图过渡负责，
+   再叠一个上浮淡入，过渡结束那一刻卡片会半透明地往上跳一下 */
+.card.reveal:has(.hero-active) {
+  animation: none;
 }
 @keyframes reveal {
   from {
@@ -149,9 +178,6 @@ html[data-vt] .player {
     transform: translateX(30%) rotate(0deg);
   }
 }
-.detail-band {
-  animation: fade-in 1.2s var(--ease-soft) both;
-}
 .detail-text > * {
   animation: reveal 0.7s var(--ease-out) both;
 }
@@ -164,9 +190,7 @@ html[data-vt] .player {
 .detail-text > :nth-child(4) {
   animation-delay: 180ms;
 }
-.detail-head.pending .detail-text > * {
-  animation: none;
-}
+/* 详情数据回来时 .detail-rest 才挂载，自己播一次入场；标题在预览阶段已经出现，不再重播 */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -224,6 +248,48 @@ html[data-vt] .player {
 @keyframes spin {
   to {
     transform: rotate(1turn);
+  }
+}
+
+/* ============ 唱机换唱片 ============ */
+/* 旧唱片：先被拿起来一点（放大 = 离镜头更近），带着余转往左上方抽走 */
+.deck-vinyl.leaving {
+  pointer-events: none;
+  animation: record-out 0.62s cubic-bezier(0.45, 0, 0.7, 0.2) 0.12s both;
+}
+/* 新唱片：从右上方放进来，落到唱盘上轻轻一沉再回弹 */
+.deck-vinyl.entering {
+  animation: record-in 0.78s cubic-bezier(0.2, 0.75, 0.25, 1) 0.34s both;
+}
+@keyframes record-out {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  28% {
+    transform: translate(0, -1%) scale(1.045);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-58%, -16%) scale(1.045);
+    opacity: 0;
+  }
+}
+@keyframes record-in {
+  0% {
+    transform: translate(46%, -26%) scale(1.05);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  68% {
+    transform: translate(0, -0.5%) scale(1.045);
+  }
+  86% {
+    transform: translate(0, 0) scale(0.992);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
   }
 }
 

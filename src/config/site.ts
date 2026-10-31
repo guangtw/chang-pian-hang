@@ -6,12 +6,18 @@ const env = import.meta.env;
 
 export type BlockLayout = 'banner' | 'grid' | 'shelf' | 'chart' | 'list';
 
+const brandBig = (env.VITE_BRAND_BIG as string) || 'Mining';
+const brandSmall = (env.VITE_BRAND_SMALL as string) || '唱片行';
+
 export const site = {
-  name: (env.VITE_SITE_NAME as string) || '唱片行',
+  /** 完整站名：标签页标题、读屏文字等用它 */
+  name: (env.VITE_SITE_NAME as string) || `${brandBig}${brandSmall}`,
+  /** 侧栏站标分两行：大字一行、小字一行 */
+  brand: { big: brandBig, small: brandSmall },
   /** 刊头小字。{n} 会被替换为期号 */
   issueLabel: '第 {n} 期',
-  /** 期号起算日（每周一期） */
-  issueEpoch: '2024-01-01',
+  /** 期号起算点：从这一刻起每满一周加一期。选的是周五零点（北京时间），和下面的「每周五出刊」对上 */
+  issueEpoch: '2024-01-05T00:00:00+08:00',
   issueCadence: '每周五出刊',
   footerNote: '数据由站内 BFF 提供',
 } as const;

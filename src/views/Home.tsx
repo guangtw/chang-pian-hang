@@ -56,7 +56,7 @@ function Feature({ item }: { item: DiscoverItem }) {
   };
 
   return (
-    <article className="feature" style={tintVars(tint)}>
+    <article className={`feature ${tint ? 'tinted' : ''}`} style={tintVars(tint)}>
       <a className="feature-art" href={action.to} onClick={open} aria-label={item.title}>
         <Vinyl cover={item.coverUrl} className="feature-vinyl" labelPx={300} spinning />
         <Cover src={item.coverUrl} alt="" size={800} className="sleeve" />
@@ -173,7 +173,7 @@ function Block({ block, no, skip }: { block: DiscoverBlock; no: number; skip?: s
 }
 
 export function Home() {
-  const { data, error, loading, reload } = useAsync(() => music.discoverHome(), []);
+  const { data, error, loading, reload } = useAsync(() => music.discoverHome(), [], 'discover');
   const feature = data && pickFeature(data.blocks);
   const kw = data?.searchAssist.defaultKeyword;
 

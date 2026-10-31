@@ -30,7 +30,7 @@ export function DetailHeader({ heroKey, kind, title, coverUrl, byline, descripti
   const long = (description?.length ?? 0) > 110;
 
   return (
-    <header className={`detail-head ${pending ? 'pending' : ''}`} style={tintVars(tint)}>
+    <header className={`detail-head ${pending ? 'pending' : ''} ${tint ? 'tinted' : ''}`} style={tintVars(tint)}>
       <div className="detail-band" aria-hidden="true" />
       <div className={`detail-art ${round ? 'round' : ''}`}>
         {!round && <Vinyl cover={coverUrl} className="detail-vinyl" labelPx={300} />}

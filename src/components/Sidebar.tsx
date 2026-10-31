@@ -34,9 +34,12 @@ export function Sidebar() {
 
   return (
     <nav className="side" aria-label="主导航">
-      <a href={href.home()} className="brand">
+      <a href={href.home()} className="brand" aria-label={site.name}>
         <span className="brand-mark" aria-hidden="true" />
-        <span className="brand-name">{site.name}</span>
+        <span className="brand-name" aria-hidden="true">
+          <span className="brand-big">{site.brand.big}</span>
+          <span className="brand-small">{site.brand.small}</span>
+        </span>
       </a>
       <div className="brand-sub mono">{issueLabel()}</div>
 

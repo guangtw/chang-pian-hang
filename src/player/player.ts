@@ -326,3 +326,9 @@ if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('nexttrack', () => next());
   navigator.mediaSession.setActionHandler('seekto', (d) => d.seekTime != null && seek(d.seekTime * 1000));
 }
+
+// 刷新页面后恢复的那首歌也先把歌词取回来，打开唱机时不用等按下播放
+{
+  const restored = currentTrack();
+  if (restored) loadLyric(restored.id, loadToken);
+}

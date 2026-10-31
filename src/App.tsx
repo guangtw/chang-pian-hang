@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { coverOf } from './api';
 import { LoginDialog } from './components/LoginDialog';
 import { NowPlaying } from './components/NowPlaying';
@@ -116,11 +116,12 @@ export function App() {
     };
   }, [cover]);
 
-  // 切页时回到顶部，收起浮层
-  useEffect(() => {
-    mainRef.current?.scrollTo(0, 0);
+  // 切页时回到顶部（返回时回到离开时的位置），收起浮层。
+  // 用 layout effect：要在视图过渡拍新快照之前滚好
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo(0, route.scrollY);
     uiStore.set({ nowPlaying: false, queue: false });
-  }, [route.path]);
+  }, [route.path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="app">

@@ -8,7 +8,7 @@ import { useAsync } from '../lib/useAsync';
 
 /** 榜单页：每张榜单带前三名预览 */
 export function Charts() {
-  const { data, error, loading, reload } = useAsync(() => music.toplists(), []);
+  const { data, error, loading, reload } = useAsync(() => music.toplists(), [], 'toplists');
   return (
     <div className="page">
       <header className="page-head reveal">

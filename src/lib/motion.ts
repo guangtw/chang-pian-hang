@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { tintOf } from './palette';
 import { motionEnabled } from './settings';
 import { createStore } from './store';
 
 // ================= 视图过渡 =================
 
-type TransitionKind = 'page' | 'np-open' | 'np-close';
+type TransitionKind = 'page' | 'np-open' | 'np-close' | 'theme';
 
 type ViewTransitionDoc = Document & {
-  startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+  startViewTransition?: (cb: () => void) => { finished: Promise<void>; ready: Promise<void> };
 };
 
 let running = false;
@@ -27,6 +28,8 @@ export function transition(update: () => void, kind: TransitionKind = 'page') {
   const root = document.documentElement;
   root.dataset.vt = kind;
   const vt = doc.startViewTransition(() => flushSync(update));
+  // 页面在后台、或被别的过渡打断时浏览器会跳过动画（更新照常生效），ready 会 reject，不算错误
+  vt.ready.catch(() => undefined);
   vt.finished.finally(() => {
     running = false;
     delete root.dataset.vt;
@@ -57,7 +60,11 @@ export interface Preview {
   subtitle?: string;
 }
 const previews = new Map<string, Preview>();
-export const setPreview = (key: string, p: Preview) => previews.set(key, p);
+export function setPreview(key: string, p: Preview) {
+  previews.set(key, p);
+  // 顺手开始取色：过渡播完时多半已经算好，详情页的色带直接是对的颜色
+  void tintOf(p.coverUrl);
+}
 export const getPreview = (key: string) => previews.get(key);
 
 // ================= 帧循环 =================
@@ -120,8 +127,8 @@ export class Spring {
   velocity = 0;
   constructor(
     initial: number,
-    private stiffness = 120,
-    private damping = 18,
+    public stiffness = 120,
+    public damping = 18,
   ) {
     this.value = this.target = initial;
   }

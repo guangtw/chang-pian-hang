@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sized } from '../components/Cover';
+import { imageKey, sized } from '../components/Cover';
 import { knownTint } from './covers';
 
 /** 封面主色，用色相 + 饱和度表示；明度交给 CSS 按主题决定，保证文字对比度 */
@@ -11,6 +11,8 @@ export interface Tint {
 export const DEFAULT_TINT: Tint = { h: 16, s: 88 };
 
 const cache = new Map<string, Promise<Tint>>();
+/** 已经算出来的颜色，组件挂载时能同步拿到，免得先闪默认色再过渡 */
+const resolved = new Map<string, Tint>();
 
 function rgbToHsl(r: number, g: number, b: number) {
   r /= 255;
@@ -77,16 +79,30 @@ export function tintOf(url?: string): Promise<Tint> {
   const key = sized(url, 64)!;
   let p = cache.get(key);
   if (!p) {
-    p = extract(key);
+    p = extract(key).then((t) => {
+      resolved.set(imageKey(url), t);
+      return t;
+    });
     cache.set(key, p);
   }
   return p;
 }
 
+/** 同步查颜色：算过的直接给，没算过的返回 null */
+export function peekTint(url?: string): Tint | null {
+  if (!url) return null;
+  return knownTint(url) ?? resolved.get(imageKey(url)) ?? null;
+}
+
 export function useTint(url?: string): Tint | null {
-  const [tint, setTint] = useState<Tint | null>(null);
+  const [tint, setTint] = useState<Tint | null>(() => peekTint(url));
   useEffect(() => {
     let alive = true;
+    const known = peekTint(url);
+    if (known) {
+      setTint(known);
+      return;
+    }
     tintOf(url).then((t) => alive && setTint(t));
     return () => {
       alive = false;
