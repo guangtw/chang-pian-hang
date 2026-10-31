@@ -624,30 +624,30 @@ img {
 .masthead {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: end;
-  column-gap: 40px;
-  padding-bottom: 20px;
+  align-items: center;
+  column-gap: 20px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
 }
 .mast-figure {
   display: flex;
   align-items: flex-start;
   font-family: var(--display);
-  font-size: clamp(64px, 10vw, 136px);
+  font-size: 34px;
   font-weight: 600;
-  line-height: 0.82;
-  letter-spacing: -0.06em;
+  line-height: 1;
+  letter-spacing: -0.04em;
   font-feature-settings: 'tnum';
   color: var(--ink);
   white-space: nowrap;
   transition: color 0.35s var(--ease-soft);
 }
 .mast-mark {
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 400;
-  letter-spacing: 0;
+  letter-spacing: 0.08em;
   line-height: 1;
-  margin-right: 8px;
+  margin: 2px 5px 0 0;
   color: var(--accent);
 }
 .mast-figure:not(:disabled):hover {
@@ -656,54 +656,73 @@ img {
 .mast-figure.is-loading .mast-digits {
   visibility: hidden;
 }
-/* 卷首语：大数字右边的一段引文，左侧一道强调色竖线 */
+/* 卷首语：时刻右边的引文，左侧一道强调色细线；一行句子 + 一行出处 */
 .epigraph {
   position: relative;
-  align-self: end;
   min-width: 0;
-  max-width: 560px;
   margin: 0;
-  padding: 2px 0 2px 22px;
+  padding-left: 18px;
 }
 .epigraph::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
+  top: 2px;
+  bottom: 2px;
   width: 2px;
   border-radius: 1px;
   background: var(--accent);
   transform-origin: top;
 }
-.epigraph-label {
-  margin-bottom: 8px;
-  font-size: 11px;
-  letter-spacing: 0.24em;
-  color: var(--accent);
+.epigraph-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  white-space: nowrap;
 }
 .epigraph-text {
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
-  font-size: clamp(20px, 2.1vw, 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 19px;
   font-weight: 650;
   line-height: 1.3;
   letter-spacing: -0.01em;
-  text-wrap: balance;
 }
 .epigraph.is-loading .epigraph-text {
   min-height: 1.3em;
 }
+/* 空间不够时先压缩译文 */
 .epigraph-tr {
-  margin-top: 4px;
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 14px;
   color: var(--ink-2);
 }
+.epigraph-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+.epigraph-label {
+  flex: none;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+}
 .epigraph-src {
-  display: block;
-  margin-top: 12px;
-  text-align: left;
-  line-height: 1.5;
-  font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ink-2);
   transition: color 0.2s;
@@ -712,8 +731,8 @@ img {
   margin-left: 4px;
 }
 .epigraph-src svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   margin-left: 4px;
   vertical-align: -2px;
   transition: transform 0.3s var(--ease-spring);
@@ -733,10 +752,10 @@ img {
   text-align: right;
 }
 .masthead-ask {
-  margin-top: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 14px;
   font-weight: 500;
 }
 .masthead-ask svg {
@@ -757,7 +776,7 @@ img {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 56px;
   align-items: center;
-  padding: 56px 0 8px;
+  padding: 40px 0 0;
 }
 .feature::before {
   content: '';
@@ -801,11 +820,17 @@ img {
   width: 78%;
 }
 .feature-title {
-  font-size: clamp(40px, 5.2vw, 72px);
+  font-size: clamp(34px, 4.2vw, 58px);
   font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.045em;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
   margin: 14px 0 16px;
+  text-wrap: balance;
+  /* 推荐标题有时很长，最多三行 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 .feature-sub {
   font-size: 17px;
@@ -2147,18 +2172,33 @@ img {
     padding-top: 18px;
   }
   .masthead {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 18px;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 12px;
+    padding-bottom: 14px;
   }
   .masthead-meta {
+    grid-column: 1 / -1;
     align-items: flex-start;
     text-align: left;
   }
+  .mast-figure {
+    font-size: 28px;
+  }
   .epigraph {
-    padding-left: 16px;
+    padding-left: 14px;
+  }
+  .epigraph-line {
+    display: block;
+    white-space: normal;
   }
   .epigraph-text {
-    font-size: 18px;
+    font-size: 16px;
+  }
+  .epigraph-tr {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
   }
   .feature,
   .detail-head {

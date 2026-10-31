@@ -8,7 +8,7 @@ import { Vinyl } from '../components/Vinyl';
 import { epigraph as epigraphCfg, homeLayout, site, type BlockLayout } from '../config/site';
 import { resolveDiscover } from '../lib/discover';
 import { cachedEpigraph, todaysEpigraph, type Epigraph } from '../lib/epigraph';
-import { dayKey, formatTime, longDate } from '../lib/format';
+import { dayKey, formatTime } from '../lib/format';
 import { markHero, setPreview } from '../lib/motion';
 import { tintVars, useTint } from '../lib/palette';
 import { href, navigate } from '../lib/router';
@@ -180,8 +180,9 @@ function tokens(text: string) {
 }
 
 /**
- * 刊头：左边一个大数字，是今日卷首语那句歌词在歌里出现的时刻（At 0:32）；
- * 旁边是这句歌词，带出处。点数字或出处都从这一刻开始播放。同一天固定，第二天自动换。
+ * 页眉：一条细栏，不和下面的封面故事抢主角。
+ * 左边是今日卷首语那句歌词在歌里出现的时刻（At 0:32），旁边是这句歌词和出处。
+ * 点时刻或出处都从这一刻开始播放。同一天固定，第二天自动换。
  */
 function EpigraphHead({ source, ready }: { source?: DiscoverItem; ready: boolean }) {
   // undefined = 还在挑；null = 没挑到，用兜底句
@@ -232,29 +233,33 @@ function EpigraphHead({ source, ready }: { source?: DiscoverItem; ready: boolean
       </button>
 
       <figure className={`epigraph ${loading ? 'is-loading' : ''}`}>
-        <div className="epigraph-label mono">{epigraphCfg.label}</div>
-        <blockquote className="epigraph-text" aria-label={text} lang={/\p{Script=Han}/u.test(text) ? undefined : 'en'}>
-          {text && (
-            <span aria-hidden="true">
-              {tokens(text).map((t, i) =>
-                /^\s+$/.test(t) ? (
-                  t
-                ) : (
-                  <span key={i} className="ch" style={{ '--c': c++ } as React.CSSProperties}>
-                    {t}
-                  </span>
-                ),
-              )}
-            </span>
+        <div className="epigraph-line">
+          <blockquote className="epigraph-text" aria-label={text} lang={/\p{Script=Han}/u.test(text) ? undefined : 'en'}>
+            {text && (
+              <span aria-hidden="true">
+                {tokens(text).map((t, i) =>
+                  /^\s+$/.test(t) ? (
+                    t
+                  ) : (
+                    <span key={i} className="ch" style={{ '--c': c++ } as React.CSSProperties}>
+                      {t}
+                    </span>
+                  ),
+                )}
+              </span>
+            )}
+          </blockquote>
+          {ep?.translation && <span className="epigraph-tr">{ep.translation}</span>}
+        </div>
+        <figcaption className="epigraph-meta">
+          <span className="epigraph-label mono">{epigraphCfg.label}</span>
+          {ep && (
+            <button className="epigraph-src" style={{ '--c': c } as React.CSSProperties} onClick={play}>
+              《{ep.track.name}》<span className="faint">{ep.track.artists.map((a) => a.name).join(' / ')}</span>
+              <Icon name="arrow" />
+            </button>
           )}
-        </blockquote>
-        {ep?.translation && <p className="epigraph-tr">{ep.translation}</p>}
-        {ep && (
-          <button className="epigraph-src" style={{ '--c': c } as React.CSSProperties} onClick={play}>
-            《{ep.track.name}》<span className="faint">{ep.track.artists.map((a) => a.name).join(' / ')}</span>
-            <Icon name="arrow" />
-          </button>
-        )}
+        </figcaption>
       </figure>
     </>
   );
@@ -270,7 +275,6 @@ export function Home() {
       <header className="masthead reveal">
         <EpigraphHead source={feature} ready={!loading} />
         <div className="masthead-meta">
-          <span className="mono">{longDate()}</span>
           {kw && (
             <a className="masthead-ask" href={href.search(kw)}>
               今天想听「{kw}」吗 <Icon name="arrow" />
